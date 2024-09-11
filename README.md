@@ -1,2 +1,3 @@
-# blade
-Blade is a lightweight blockchain and encryption library for my personal use. 
+# 🍃 Blade
+
+Blade is a lightweight Blockchain and encryption library for my personal use. 
