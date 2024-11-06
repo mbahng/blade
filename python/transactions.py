@@ -6,14 +6,14 @@ from typing import Union
 
 class Transaction: 
 
-    def __init__(self, sender: Wallet, receiver: Wallet, value: float, timestamp: datetime):
+    def __init__(self, sender: Wallet, receiver: Wallet, value: float, message, timestamp: datetime):
         self.sender = sender 
         self.receiver = receiver
         self.value = value 
-        self.timestamp = timestamp
+        self.timestamp = timestamp 
 
 
 class Block: 
 
     def __init__(self):
-        self.transactions = set()
+        self.transactions = set() 

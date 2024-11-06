@@ -1,26 +1,33 @@
 from __future__ import annotations
 import hashlib 
+from typing import Optional
 import rands 
+import datetime
+from transactions import Transaction
 
 def hash(x): 
     return pow(x + 6748, 300, x)
 
 class PublicKey: 
+    '''Public key class. Should not be instantiated directly. '''
     
-    def __init__(self, number, k): 
+    def __init__(self, number, k, key): 
         self.n = number 
         self.k = k
+        self.key = key
 
     def __call__(self, message): 
         return pow(message, self.k, self.n)
 
 class PrivateKey: 
+    '''Private key class. Should not be instantiated directly. '''
 
-    def __init__(self, p, q, k): 
+    def __init__(self, p, q, k, key): 
         self.p = p 
         self.q = q 
         self.n = p * q
         self.k = k
+        self.key = key
 
     def __call__(self, message): 
         '''Decrypt a message. '''
@@ -49,17 +56,23 @@ class PrivateKey:
 
 class Key: 
 
-    def __init__(self): 
+    def __init__(self, wallet: Wallet): 
         p = rands.generate_prime(256)
         q = rands.generate_prime(256)
         n = p * q 
         k = 65537
+        self.wallet = wallet
 
         # pub and priv are inverses, so can be called in either order
-        self.pub = PublicKey(n, k)
-        self.priv = PrivateKey(p, q, k)
+        self.pub = PublicKey(n, k, self)
+        self.priv = PrivateKey(p, q, k, self)
 
-    def send_message(self, message, receiver: Key): 
+    def make_transaction(self, value: float, message, receiver): 
+        '''makes a transaction object'''
+        return Transaction(self.wallet, receiver, value, message, datetime.datetime.now())
+
+
+    def send_message(self, value:float, message, receiver: Key): 
         # encrypt message using public key of receiver 
         encrypted = receiver.pub(message) 
         
@@ -68,11 +81,16 @@ class Key:
 
         return (encrypted, mid, self.pub)
 
-    def receive_message(self, message): 
+    def receive_message(self, value, message) -> Optional[Transaction]:
         a, b, c = message
         # check sender's identity 
-        return hash(a) == c(b), self.priv(a)
-
+        if hash(a) == c(b): 
+            timestamp = datetime.datetime.now()
+            transaction = Transaction(self.wallet, c.key.wallet, value, message, timestamp)
+            return transaction 
+        else: 
+            print("Faulty transaction!")
+            return None
 
 class Wallet: 
     '''A container for keys.'''
@@ -81,5 +99,5 @@ class Wallet:
         self.keys = []
 
     def add_key(self): 
-        self.keys.append(Key())
+        self.keys.append(Key(self))
 
