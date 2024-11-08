@@ -14,10 +14,15 @@ function getLowPrimes(n) {
 
 const lowPrimes = getLowPrimes(5000);
 
-function randomInt(n) {
-  return BigInt(Math.floor(
-    Math.random() * (2 ** (n - 1)) + 2 ** (n - 2)
-  )) * 2n + 1n; // Ensure the number is odd
+export function randomInt(n) {
+  // lower bound, 3.17 is so that product is guaranteed to give 2n binary digits
+  let lb = 3.17 * (2 ** (n-2)); 
+  let up = 2 ** n;  // upper bound 
+  let x = BigInt(Math.floor(Math.random() * (up - lb) + lb)); 
+  if (x % 2n == 0n) {
+    return x + 1n; // ensure output is odd
+  }
+  return x; 
 }
 
 function testPrimalityLow(number) {
@@ -78,7 +83,7 @@ function testPrimalityHigh(num, t) {
   return true; // Probably prime
 }
 
-export function generatePrime(n) {
+export function generatePrime(n) { 
   while (true) {
     const candidate = randomInt(n);
     if (testPrimalityLow(candidate) && testPrimalityHigh(candidate, 20)) {

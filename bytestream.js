@@ -19,12 +19,8 @@ export function check_dec_integrity(string) {
 }
 
 export function check_hex_integrity(string) {
-  for (let i = 0; i < string.length; i++) {
-    if (parseInt(string[i], 16) >= 16) {
-      return false; 
-    }
-  }
-  return true; 
+  const validHex = /^[0-9A-Fa-f]+$/;
+  return validHex.test(string);
 }
 
 export function hex_to_bin(hex) {
@@ -41,32 +37,22 @@ export function hex_to_bin(hex) {
 
 export function hex_to_dec(hex) {
   if (!check_hex_integrity(hex)) {
-    throw new Error("Not a hex. ");
+    throw new Error("Not a hex.");
   }
-
-  let res = 0n;
-  for (let i = 0; i < hex.length -1; i++) {
-    res = (res + BigInt(parseInt(hex[i], 16))) * 16n;
-  }
-  res = (res + BigInt(parseInt(hex[hex.length-1], 16))); 
-  return String(res); 
+  return String(BigInt(`0x${hex}`));
 }
 
 export function dec_to_hex(dec) {
-  if (!check_dec_integrity(dec)) {
-    throw new Error("Not a hex. ");
+  let num = BigInt(dec);
+  if (num === 0n) return "0";
+  
+  let hex = "";
+  while (num > 0n) {
+    const remainder = num % 16n;
+    hex = "0123456789ABCDEF"[Number(remainder)] + hex;
+    num = num / 16n;
   }
-
-  dec = BigInt(dec); 
-  let res = ""; 
-
-  while (dec > 0) {
-    let remainder = dec % 16n;
-    res += Number(remainder).toString(16); 
-    dec = (dec - remainder) / 16n;
-  }
-
-  return res.split('').reverse().join('').toUpperCase();
+  return hex;
 }
 
 export function dec_to_bin(dec) {
@@ -75,7 +61,7 @@ export function dec_to_bin(dec) {
   }
 
   dec = BigInt(dec); 
-  res = ""; 
+  let res = ""; 
 
   while (dec > 0) {
     let remainder = dec % 2n;
@@ -148,27 +134,57 @@ export class Bin {
 
 export class Hex {
   constructor(stream) {
-    if (check_hex_integrity(stream)) {
+    if (typeof stream === 'string') {
+      stream = stream.toUpperCase();
+      if (!check_hex_integrity(stream)) {
+        throw new Error("Not a hex.");
+      }
       this.stream = stream;
-      this.length = stream.length * 4; 
+      this.length = stream.length * 4;
+    } else {
+      throw new Error("Hex must be constructed with a string.");
     }
+  }
+
+  toString() {
+    return this.stream;
   }
   
-  toBin() {
-    return new Bin(hex_to_bin(this.stream)); 
-  }
-
   toBigInt() {
-    return BigInt(hex_to_dec(this.stream)); 
+    return BigInt(`0x${this.stream}`);
   }
 
-  static random(length) { 
-    assert(length % 4 == 0); 
-    let res = ""; 
-    for (let i = 0; i < length / 4; i++) {
-      res += Math.floor(Math.random() * 16).toString(16); 
+  static fromBigInt(x) {
+    if (typeof x !== 'bigint') {
+      throw new Error("Input must be a BigInt");
     }
-    return new Hex(res); 
+    return new Hex(dec_to_hex(x.toString()));
+  }
+
+  static fromHex(x) {
+    return new Hex(x);
+  }
+
+  static random(length) {
+    assert(length % 4 === 0);
+    const bytes = new Uint8Array(length / 8);
+    crypto.getRandomValues(bytes);
+    return new Hex(Array.from(bytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase());
+  }
+
+  add(other) {
+    return new Hex(dec_to_hex(String(this.toBigInt() + other.toBigInt()))); 
+  }
+
+  sub(other) {
+    return new Hex(dec_to_hex(String(this.toBigInt() - other.toBigInt()))); 
+  }
+
+  mul(other) {
+    return new Hex(dec_to_hex(String(this.toBigInt() * other.toBigInt()))); 
   }
 }
 

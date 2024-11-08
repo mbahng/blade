@@ -1,7 +1,23 @@
 import { Bin, Hex, hex_to_bin } from "./bytestream.js";
 import crypto from "crypto"; 
+import assert from "assert/strict"; 
 
 export function expmod(base, exponent, modulus) {
+
+  assert(base instanceof Hex || typeof(base) == "bigint"); 
+  assert(exponent instanceof Hex || typeof(exponent) == "bigint"); 
+  assert(exponent instanceof Hex || typeof(exponent) == "bigint"); 
+
+  if (base instanceof Hex) {
+    base = base.toBigInt(); 
+  }
+  if (exponent instanceof Hex) {
+    exponent = exponent.toBigInt(); 
+  }
+  if (base instanceof Hex) {
+    modulus = modulus.toBigInt(); 
+  }
+
   if (modulus === 1n) {
     return 0n;
   }

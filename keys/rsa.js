@@ -3,7 +3,7 @@ import { generatePrime } from "./primes.js";
 import { Stream, Hex, dec_to_hex } from "./bytestream.js";
 import assert from "assert/strict";
 
-class PublicKey {
+class PublicRsaKey {
   // Public key class. Should not be instantiated directly. 
   
   constructor(number, k) {
@@ -24,11 +24,10 @@ class PublicKey {
   }
 } 
 
-class PrivateKey {
+class PrivateRsaKey {
   // Private key class. Should not be instantiated directly. 
 
   constructor(p, q, k) {
-
     this.p = new Hex(dec_to_hex(String(p))); 
     this.q = new Hex(dec_to_hex(String(q))); 
     this.k = new Hex(dec_to_hex(String(k))); 
@@ -73,18 +72,18 @@ class PrivateKey {
     const recovered = String(expmod(message.toBigInt(), d, this.n_)); 
     const hex_encoded = dec_to_hex(recovered);
     return Stream.fromHex(hex_encoded);
-
   }
 }
 
-export class Key {
-  constructor() { 
-    const p = generatePrime(128); 
-    const q = generatePrime(128); 
+export class RsaKeyPair {
+  constructor(bitlen) { 
+    assert(bitlen % 8 == 0); 
+    const p = generatePrime(bitlen/2); 
+    const q = generatePrime(bitlen/2); 
     const k = 65537n; 
     const n = p * q; 
-    this.public = new PublicKey(n, k); 
-    this.private = new PrivateKey(p, q, k);
+    this.public = new PublicRsaKey(n, k); 
+    this.private = new PrivateRsaKey(p, q, k);
   }
 }
 
