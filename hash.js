@@ -41,7 +41,7 @@ export function expmod(base, exponent, modulus) {
 }
 
 function sha256_hex(stream) {
-  return new Hex(crypto.createHash("sha256").update(hex_to_bin(stream.stream)).digest('hex'));
+  return new Hex(crypto.createHash("sha256").update(stream.stream).digest('hex'));
 }
 
 function sha256_bin(stream) {
@@ -60,4 +60,19 @@ export function sha256(stream) {
   }
 }
 
+function hmac_sha512_hex(stream, c) {
+  return new Hex(crypto.createHmac("sha512", Buffer.from(c.stream, "base64")).update(stream.stream).digest('hex'));
+}
 
+function hmac_sha512_bin(stream, c) {
+  return new Hex(crypto.createHmac("sha512", Buffer.from(c.stream, "base64")).update(stream.stream).digest('hex'));
+}
+
+export function hmac_sha512(stream, c) {
+  if (stream instanceof Hex && c instanceof Hex) {
+    return hmac_sha512_hex(stream, c);
+  }
+  else {
+    throw Error("Not a valid input type.");
+  }
+}

@@ -186,6 +186,18 @@ export class Hex {
   mul(other) {
     return new Hex(dec_to_hex(String(this.toBigInt() * other.toBigInt()))); 
   }
+
+  concat(other) {
+    return new Hex((this.stream + other.stream).padStart((this.length + other.length)/4, "0")); 
+  }
+
+  split() {
+    assert(this.stream.length % 2 === 0, "Hex length must be divisible by 2."); 
+    const half = this.stream.length / 2; 
+    const L = new Hex(this.stream.slice(0, half))
+    const R = new Hex(this.stream.slice(-half))
+    return [L, R]; 
+  }
 }
 
 export class Stream {

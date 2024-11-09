@@ -1,5 +1,8 @@
 import { Hex } from "../bytestream.js";
 import assert from "assert/strict";
+import { randomInt } from "../primes.js";
+import { warn } from "console";
+import { hmac_sha512 } from "../hash.js";
 
 export function inverse(a, p) {
   if (a instanceof Hex) {
@@ -50,11 +53,15 @@ export function inverse(a, p) {
 }
 
 export class EccCurve {
-  constructor(p, a, b) {
-    assert(a instanceof Hex && b instanceof Hex && p instanceof Hex); 
+  constructor(p, a, b, n) {
+    assert(a instanceof Hex 
+      && b instanceof Hex 
+      && p instanceof Hex 
+      && n instanceof Hex); 
     this.p = p; 
     this.a = a; 
     this.b = b; 
+    this.n = n; 
   }
 }
 
@@ -76,17 +83,17 @@ export class EccPoint {
 
   // Point operations
   isOnCurve() {
-      if (this.x == null) return true;
-      
-      const x = this.x.toBigInt();
-      const y = this.y.toBigInt();
-      const a = this.curve.a.toBigInt();
-      const b = this.curve.b.toBigInt();
-      const p = this.curve.p.toBigInt();
-      
-      const left = y * y;
-      const right = ((x * x * x) % p) + a * x + b;
-      return (left % p) === (right % p);
+    if (this.x == null) return true;
+    
+    const x = this.x.toBigInt();
+    const y = this.y.toBigInt();
+    const a = this.curve.a.toBigInt();
+    const b = this.curve.b.toBigInt();
+    const p = this.curve.p.toBigInt();
+    
+    const left = y * y;
+    const right = ((x * x * x) % p) + a * x + b;
+    return (left % p) === (right % p);
   }
 
   double() {
@@ -193,4 +200,136 @@ export class EccPoint {
     
     return result;
   }
+
+  toHex() {
+    return this.x.concat(this.y);
+  }
+}
+
+class PublicEccKey {
+  // Non-hardened, perhaps extended key
+  constructor(curve, point, G, chain) {
+    this.point = point; 
+    this.K = point.toHex(); 
+    this.curve = curve; 
+    this.G = G; 
+    this.chain = chain; 
+  }
+
+  ckd(i) {
+    // child key derivation function private -> private
+    assert(this.extension !== null, "This must be an extended key."); 
+    assert(i instanceof Hex, "Index must be a Hex type."); 
+    assert(0n <= i.toBigInt() < 2n ** 31n, "Index must be between 0 and 2^31.");
+    const data = this.K.concat(i);
+    const I = hmac_sha512(this.chain, data); 
+    const [L, R] = I.split(); 
+    let parsed_L = this.G.mul(L); 
+    let child_key_point = parsed_L.add(this.point);
+
+    return new PublicEccKey(
+      this.curve, 
+      child_key_point, 
+      this.G, 
+      R
+    );
+  }
+}
+
+class PrivateEccKey {
+  // Non-hardened, perhaps extended key
+  constructor(curve, k, K, G, chain) {
+    this.k = k; 
+    this.K = K; 
+    this.G = G; 
+    this.curve = curve;
+    this.chain = chain; 
+  }
+
+  ckd(i) {
+    // child key derivation function private -> private
+    assert(this.extension !== null, "This must be an extended key."); 
+    assert(i instanceof Hex, "Index must be a Hex type."); 
+    assert(0n <= i.toBigInt() < 2n ** 31n, "Index must be between 0 and 2^31.");
+    const data = this.K.concat(i);
+    const I = hmac_sha512(this.chain, data); 
+    const [L, R] = I.split(); 
+    let child_priv_key_val = Hex.fromBigInt((L.toBigInt() + this.k.toBigInt()) % (this.curve.n.toBigInt())); 
+    let child_pub_key_val = this.G.mul(child_priv_key_val); 
+    let cpriv_key = new PrivateEccKey(this.curve, child_priv_key_val, child_pub_key_val.toHex(), this.G, R); 
+    return cpriv_key;  
+  }
+}
+
+class EccKeyPair {
+  // Constructor should not be called directly, since there are defined 
+  // standards for what p, a, b, G should be
+  constructor(G, extended) {
+    this.curve = G.curve; 
+    let chain; 
+    if (extended) {
+      chain = Hex.fromBigInt(randomInt(256)); 
+    }
+    else {
+      chain = null; 
+    }
+
+    const private_key = Hex.fromBigInt(randomInt(256));
+
+    // compute public key 
+    const public_point = G.mul(private_key);
+    this.public = new PublicEccKey(this.curve, public_point, G, chain);
+    this.private = new PrivateEccKey(this.curve, private_key, this.public.K, G, chain); 
+  }
+}
+
+export function secp192k1(extended) {
+  let p = new Hex("fffffffffffffffffffffffffffffffffffffffeffffee37");
+  let a = new Hex("000000000000000000000000000000000000000000000000");
+  let b = new Hex("000000000000000000000000000000000000000000000003");
+  let n = new Hex("fffffffffffffffffffffffe26f2fc170f69466a74defd8d");
+
+  let curve = new EccCurve(p, a, b, n);
+
+  let G = new EccPoint(
+    new Hex("db4ff10ec057e9ae26b07d0280b7f4341da5d1b1eae06c7d"),
+    new Hex("9b2f2f6d9c5628a7844163d015be86344082aa88d95e2f9d"),
+    curve 
+  );
+
+  return new EccKeyPair(G, extended);
+}
+
+export function secp256k1(extended) {
+  let p = new Hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F");
+  let a = new Hex("0000000000000000000000000000000000000000000000000000000000000000");
+  let b = new Hex("0000000000000000000000000000000000000000000000000000000000000007");
+  let n = new Hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
+
+  let curve = new EccCurve(p, a, b, n);
+
+  let G = new EccPoint(
+    new Hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"),
+    new Hex("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"),
+    curve 
+  );
+
+  return new EccKeyPair(G, extended);
+}
+
+export function secp256r1(extended) {
+  let p = new Hex("ffffffff00000001000000000000000000000000ffffffffffffffffffffffff");
+  let a = new Hex("ffffffff00000001000000000000000000000000fffffffffffffffffffffffc");
+  let b = new Hex("5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b");
+  let n = new Hex("ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551");
+
+  let curve = new EccCurve(p, a, b, n);
+
+  let G = new EccPoint(
+    new Hex("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"),
+    new Hex("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"),
+    curve 
+  );
+
+  return new EccKeyPair(G, extended);
 }
