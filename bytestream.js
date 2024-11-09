@@ -154,11 +154,18 @@ export class Hex {
     return BigInt(`0x${this.stream}`);
   }
 
-  static fromBigInt(x) {
+  static fromBigInt(x, len=null) {
     if (typeof x !== 'bigint') {
       throw new Error("Input must be a BigInt");
     }
-    return new Hex(dec_to_hex(x.toString()));
+    if (len === null) {
+      return new Hex(dec_to_hex(x.toString()));
+    }
+    else {
+      assert(len % 4 === 0);
+      return new Hex(dec_to_hex(x.toString()).padStart(len / 4, "0"));
+    }
+    
   }
 
   static fromHex(x) {

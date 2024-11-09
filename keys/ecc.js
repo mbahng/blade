@@ -214,25 +214,28 @@ class PublicEccKey {
     this.curve = curve; 
     this.G = G; 
     this.chain = chain; 
+    this.last_key_index = 0n;
+    this.children = []; 
   }
 
-  ckd(i) {
+  ckd() {
     // child key derivation function private -> private
     assert(this.extension !== null, "This must be an extended key."); 
-    assert(i instanceof Hex, "Index must be a Hex type."); 
-    assert(0n <= i.toBigInt() < 2n ** 31n, "Index must be between 0 and 2^31.");
-    const data = this.K.concat(i);
-    const I = hmac_sha512(this.chain, data); 
-    const [L, R] = I.split(); 
-    let parsed_L = this.G.mul(L); 
-    let child_key_point = parsed_L.add(this.point);
-
-    return new PublicEccKey(
-      this.curve, 
-      child_key_point, 
-      this.G, 
-      R
-    );
+    let child_key_point; 
+    let L; let R; 
+    do {
+      const i = Hex.fromBigInt(this.last_key_index); 
+      const data = this.K.concat(i);
+      const I = hmac_sha512(this.chain, data); 
+      [L, R] = I.split(); 
+      let parsed_L = this.G.mul(L); 
+      child_key_point = parsed_L.add(this.point);
+      this.last_key_index += 1n; 
+    } while (L.toBigInt() >= this.curve.n); 
+    let cpub_key = new PublicEccKey(this.curve, child_key_point, this.G, R);
+    this.children.push(cpub_key);
+    this.last_key_index += 1n; 
+    return cpub_key;
   }
 }
 
@@ -244,19 +247,33 @@ class PrivateEccKey {
     this.G = G; 
     this.curve = curve;
     this.chain = chain; 
+    this.last_key_index = 0n;
+    this.children = []; 
   }
 
-  ckd(i) {
+  ckd() {
     // child key derivation function private -> private
     assert(this.extension !== null, "This must be an extended key."); 
-    assert(i instanceof Hex, "Index must be a Hex type."); 
-    assert(0n <= i.toBigInt() < 2n ** 31n, "Index must be between 0 and 2^31.");
-    const data = this.K.concat(i);
-    const I = hmac_sha512(this.chain, data); 
-    const [L, R] = I.split(); 
-    let child_priv_key_val = Hex.fromBigInt((L.toBigInt() + this.k.toBigInt()) % (this.curve.n.toBigInt())); 
+    let child_priv_key_val;
+    let L; let R; 
+    do {
+      // should enter while loop with probability < 2^{-127} 
+      const i = Hex.fromBigInt(this.last_key_index, 32);
+      const data = this.K.concat(i);
+      const I = hmac_sha512(this.chain, data); 
+      console.log(I);
+      [L, R] = I.split(); 
+      console.log(L);
+      console.log("--")
+      child_priv_key_val = (L.toBigInt() + this.k.toBigInt()) % (this.curve.n.toBigInt());
+      this.last_key_index += 1n; 
+    } while (child_priv_key_val === 0n || L.toBigInt() >= this.curve.n); 
+
+    child_priv_key_val = Hex.fromBigInt(child_priv_key_val);
     let child_pub_key_val = this.G.mul(child_priv_key_val); 
     let cpriv_key = new PrivateEccKey(this.curve, child_priv_key_val, child_pub_key_val.toHex(), this.G, R); 
+    this.children.push(cpriv_key);
+    this.last_key_index += 1n; 
     return cpriv_key;  
   }
 }

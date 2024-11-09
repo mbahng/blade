@@ -4,10 +4,10 @@ import { Hex } from "./bytestream.js";
 let kp = secp256k1(true); 
 let pub = kp.public; 
 let priv = kp.private; 
-let i = new Hex("000000000000000000000000000000000000000000000001");
 
-let cpriv = priv.ckd(i);
-let cpub = pub.ckd(i); 
+for (let i = 0; i < 10; i++) {
+  priv.ckd();
+  console.log(priv.last_key_index);
+  pub.ckd(); 
+}
 
-console.log(cpriv.K);
-console.log(cpub.K);
