@@ -1,54 +1,25 @@
-import { secp192k1, secp256k1, secp256r1 } from "./keys/ecc.js"; 
-import { Hex } from "./utils/bytestream.js";
-import { Block, BlockChain } from "./block/block.js";
-import { TransactionInput, TransactionOutput, Transaction } from "./transactions/transactions.js";
+import { BlockChain } from "./block/block.js";
 import { Wallet } from "./keys/wallet.js";
 import { Miner } from "./miners/miners.js";
 
-function transaction_simulation() {
-  let chain = new BlockChain(); 
-  let muchang = Wallet.random(); 
-  let sara = Wallet.random(); 
-
-  chain.mint(5000n, muchang.master_keypair);
-  chain.mint(6000n, sara.master_keypair);
-  chain.add_block(); 
-
-  console.log(`Muchang starts with 5000. `);
-  console.log(`Sara starts with 6000. `);
-
-  for (let i = 0; i < 3; i++) { 
-    let val1 = BigInt(Math.floor(Math.random() * 10));  
-    let val2 = BigInt(Math.floor(Math.random() * 10));  
-    console.log(`Muchang sends ${val1} to Sara. `);
-    console.log(`Sara sends ${val2} to Muchang. `);
-    let tx1 = muchang.send(sara.master_keypair.public, val1); 
-    let tx2 = sara.send(muchang.master_keypair.public, val2);
-    chain.add_transaction(tx1); 
-    chain.add_transaction(tx2); 
-    chain.add_block() 
-    console.log(`Muchang's balance is ${muchang.balance()}`);
-    console.log(`Sara's balance is ${sara.balance()}`);
-  }
-
-  console.log(chain);
-}
-
-// Construct chain, two wallets, and miner
+// Construct chain, two wallets and respective miners
 let chain = new BlockChain(); 
 let M = Wallet.random(); 
 let S = Wallet.random();  
 let M_miner = new Miner(M.master_keypair.public, chain); 
+let S_miner = new Miner(S.master_keypair.public, chain); 
 
-// mint some coins for now
-chain.mint(5000n, M.master_keypair);
-chain.mint(6000n, S.master_keypair);
-
+// balance should be 0 
 console.log(M.balance());
 console.log(S.balance());
 
-chain.receive_block(M_miner.mine());
+// M miner mines the first block to get coins
+chain.receive_block(M_miner.mine(), M_miner);
 
+// S miner mines the second block to get coins
+chain.receive_block(S_miner.mine(), S_miner);
+
+// Each should have 625 coins
 console.log(M.balance());
 console.log(S.balance());
 
@@ -58,7 +29,8 @@ let tx2 = S.send(M.master_keypair.public, 50n);
 chain.add_transaction(tx1);
 chain.add_transaction(tx2);
 
-chain.receive_block(M_miner.mine());
+// M mines 3rd block, getting 625 more coins plus net 30 coins from prev tx
+chain.receive_block(M_miner.mine(), M_miner);
 console.log(M.balance());
 console.log(S.balance());
 
@@ -67,7 +39,10 @@ let tx4 = S.send(M.master_keypair.public, 50n);
 chain.add_transaction(tx3);
 chain.add_transaction(tx4);
 
-chain.receive_block(M_miner.mine());
+// M mines 4th block, getting 625 more coins plus net 20 coins from prev tx
+chain.receive_block(M_miner.mine(), M_miner);
 console.log(M.balance());
 console.log(S.balance());
 
+// Whole chain has 5 blocks (1 genesis block + 4 more blocks)
+console.log(chain);
