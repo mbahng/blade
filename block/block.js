@@ -83,6 +83,7 @@ export class BlockChain {
   }
 
   add_transaction(tx) {
+    assert(tx instanceof Transaction); 
     this.pending_transactions.push(tx); 
   }
 
@@ -96,17 +97,19 @@ export class BlockChain {
 
   add_block() {
     let last_block = this.chain[this.chain.length-1]; 
-    let new_block = new Block(last_block.id, this.pending_transactions); 
+    
+    
     for (let ptx of this.pending_transactions) {
       for (let ptxi of ptx.inputs) {
-        // TODO: update so that previous utxos are marked spent 
-        ptxi.prev_tx.outputs;
+        // update so that previous utxos are marked spent 
+        ptxi.prev_txo.spent = true; 
       }
       for (let ptxo of ptx.outputs) {
         // update utxo list of the keys
         ptxo.address.txos.push(ptxo); 
       }
     }
+    let new_block = new Block(last_block.id, this.pending_transactions); 
     this.pending_transactions = []; 
     this.chain.push(new_block);
   }
