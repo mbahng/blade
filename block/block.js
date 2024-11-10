@@ -14,23 +14,27 @@ export class MerkleNode {
 }
 
 export class Block {
-  constructor(prev_block_hash, transactions) {
+  constructor(prev_block_hash, transactions, height, nonce) {
     assert(prev_block_hash instanceof Hex || prev_block_hash === null);
     for (let tx of transactions) {
       assert(tx instanceof Transaction);
     } 
+    this.version = new Hex("0"); 
+    this.height = height; 
     this.prev_block_hash = prev_block_hash; 
     this.txs = transactions; 
     this.timestamp = Date.now(); 
 
     // merkle tree needed for SPV nodes
     this.merkletree = this.create_merkle_tree(); 
-    this.id;  
+
+    // mining attributes 
+    this.difficulty = new Hex("0300000000000003A30C00000000000000000000000000000000000000000000"); 
+    this.nonce = nonce; // at what nonce was this block successfully mined 
+
+    this.id = null;  
     if (prev_block_hash === null) {
-      this.id = new Hex("0"); 
-    }
-    else {
-      this.id = Hex.random(256); 
+      this.id = new Hex("0");  // for genesis block
     }
   }
 
@@ -69,15 +73,17 @@ export class Block {
     // Recursively build the next level
     return this.build_tree_level(new_level);
   }
-
-  static genesis() {
-    return new Block(null, )
+  
+  update_id(id) {
+    assert(id instanceof Hex); 
+    assert(id.toBigInt() < this.difficulty.toBigInt()); 
+    this.id = id; 
   }
 }
 
 export class BlockChain {
   constructor() {
-    const genesis = new Block(null, []); 
+    const genesis = new Block(null, [], new Hex("0"), 0, 0); 
     this.chain = [genesis]; 
     this.pending_transactions = [];
   }
@@ -95,23 +101,39 @@ export class BlockChain {
     this.add_transaction(tx);
   }
 
-  add_block() {
-    let last_block = this.chain[this.chain.length-1]; 
-    
-    
-    for (let ptx of this.pending_transactions) {
-      for (let ptxi of ptx.inputs) {
+  receive_block(block) {
+    if (block.id.toBigInt() < block.difficulty.toBigInt()) {
+      this.accept_block(block);
+    }
+    else {
+      console.log("Does not satisfy proof of work. ");
+    }
+  }
+  
+  accept_block(block) {
+    // update the transactions in the block 
+    for (let tx of block.txs) {
+      for (let txi of tx.inputs) {
         // update so that previous utxos are marked spent 
-        ptxi.prev_txo.spent = true; 
+        txi.prev_txo.spent = true; 
       }
-      for (let ptxo of ptx.outputs) {
-        // update utxo list of the keys
-        ptxo.address.txos.push(ptxo); 
+      for (let txo of tx.outputs) {
+        // add the utxos to the respective wallets of the receivers
+        txo.address.txos.push(txo); 
       }
     }
-    let new_block = new Block(last_block.id, this.pending_transactions); 
-    this.pending_transactions = []; 
-    this.chain.push(new_block);
-  }
 
+    // delete pending transactions 
+    let i; // new pending transaction start index
+    for (i = 0; i < this.pending_transactions.length; i++) {
+      // compare the last transaction in block with the pending transactions
+      if (this.pending_transactions[i] == block.txs[block.txs.length-1]) {
+        i += 1; 
+        break
+      }
+    }
+
+    this.pending_transactions = this.pending_transactions.slice(i); 
+    this.chain.push(block); 
+  }
 }
