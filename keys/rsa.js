@@ -1,6 +1,6 @@
-import { expmod } from "./hash.js"; 
-import { generatePrime } from "./primes.js";
-import { Stream, Hex, dec_to_hex } from "./bytestream.js";
+import { Stream, Hex, dec_to_hex } from "../utils/bytestream.js";
+import { generatePrime } from "../utils/primes.js";
+import { expmod } from "../utils/hash.js"; 
 import assert from "assert/strict";
 
 class PublicRsaKey {

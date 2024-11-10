@@ -1,12 +1,11 @@
-import { Hex } from "../bytestream.js";
 import assert from "assert/strict";
-import { randomInt } from "../primes.js";
-import { warn } from "console";
-import { hmac_sha512 } from "../hash.js";
+import { Hex, dec_to_hex } from "../utils/bytestream.js";
+import { randomInt } from "../utils/primes.js";
+import { sha256, hmac_sha512 } from "../utils/hash.js";
 
 export function inverse(a, p) {
   if (a instanceof Hex) {
-    p = a.toBigInt(); 
+    a = a.toBigInt(); 
   }
   if (p instanceof Hex) {
     p = p.toBigInt(); 
@@ -206,16 +205,17 @@ export class EccPoint {
   }
 }
 
-class PublicEccKey {
+export class PublicEccKey {
   // Non-hardened, perhaps extended key
-  constructor(curve, point, G, chain) {
+  constructor(curve, point, G, chain, path="g") {
     this.point = point; 
     this.K = point.toHex(); 
     this.curve = curve; 
     this.G = G; 
     this.chain = chain; 
     this.last_key_index = 0n;
-    this.children = []; 
+    this.children = new Map();  
+    this.path = path ; // g for genesis key
   }
 
   ckd() {
@@ -232,23 +232,25 @@ class PublicEccKey {
       child_key_point = parsed_L.add(this.point);
       this.last_key_index += 1n; 
     } while (L.toBigInt() >= this.curve.n); 
-    let cpub_key = new PublicEccKey(this.curve, child_key_point, this.G, R);
-    this.children.push(cpub_key);
+    const child_path = `${this.path}/${this.last_key_index}`;
+    let cpub_key = new PublicEccKey(this.curve, child_key_point, this.G, R, child_path);
+    this.children.set(child_path, cpub_key);
     this.last_key_index += 1n; 
     return cpub_key;
   }
 }
 
-class PrivateEccKey {
+export class PrivateEccKey {
   // Non-hardened, perhaps extended key
-  constructor(curve, k, K, G, chain) {
+  constructor(curve, k, K, G, chain, path="g") {
     this.k = k; 
     this.K = K; 
     this.G = G; 
     this.curve = curve;
     this.chain = chain; 
     this.last_key_index = 0n;
-    this.children = []; 
+    this.children = new Map(); 
+    this.path = path ; // g for genesis key
   }
 
   ckd() {
@@ -261,24 +263,33 @@ class PrivateEccKey {
       const i = Hex.fromBigInt(this.last_key_index, 32);
       const data = this.K.concat(i);
       const I = hmac_sha512(this.chain, data); 
-      console.log(I);
       [L, R] = I.split(); 
-      console.log(L);
-      console.log("--")
       child_priv_key_val = (L.toBigInt() + this.k.toBigInt()) % (this.curve.n.toBigInt());
       this.last_key_index += 1n; 
     } while (child_priv_key_val === 0n || L.toBigInt() >= this.curve.n); 
 
     child_priv_key_val = Hex.fromBigInt(child_priv_key_val);
     let child_pub_key_val = this.G.mul(child_priv_key_val); 
-    let cpriv_key = new PrivateEccKey(this.curve, child_priv_key_val, child_pub_key_val.toHex(), this.G, R); 
-    this.children.push(cpriv_key);
+    const child_path = `${this.path}/${this.last_key_index}`;
+    let cpriv_key = new PrivateEccKey(this.curve, child_priv_key_val, child_pub_key_val.toHex(), this.G, R, child_path); 
+    this.children.set(child_path, cpriv_key);
     this.last_key_index += 1n; 
     return cpriv_key;  
   }
+
+  create_signature(m) { // m = message
+    let hashed_m = sha256(m); 
+    const r = Hex.random(256); 
+    const R = this.G.mul(r); 
+    const r_inv = inverse(r, this.curve.n); 
+    const s = (r_inv.toBigInt() * (
+      hashed_m.toBigInt() + this.k.toBigInt() * R.x.toBigInt())
+    ) % this.curve.n.toBigInt(); 
+    return new EcdsaSignature(hashed_m, R, Hex.fromBigInt(s), this.K); 
+  }
 }
 
-class EccKeyPair {
+export class EccKeyPair {
   // Constructor should not be called directly, since there are defined 
   // standards for what p, a, b, G should be
   constructor(G, extended) {
@@ -296,7 +307,7 @@ class EccKeyPair {
     // compute public key 
     const public_point = G.mul(private_key);
     this.public = new PublicEccKey(this.curve, public_point, G, chain);
-    this.private = new PrivateEccKey(this.curve, private_key, this.public.K, G, chain); 
+    this.private = new PrivateEccKey(this.curve, private_key, this.public, G, chain); 
   }
 }
 
@@ -349,4 +360,26 @@ export function secp256r1(extended) {
   );
 
   return new EccKeyPair(G, extended);
+}
+
+export class EcdsaSignature {
+  constructor(m, R, s, K) {
+    this.m = m;   // hashed message
+    this.R = R;   // signature component created with private key
+    this.s = s;   // signature component created with private key
+    this.K = K;   // public key of signature creator used to verify signature
+  }
+
+  verify() { 
+    const s_inv = inverse(this.s.toBigInt(), this.K.curve.n).toBigInt();
+    const u1 = Hex.fromBigInt((this.m.toBigInt() * s_inv) % this.K.curve.n.toBigInt()); 
+    const u2 = Hex.fromBigInt((this.R.x.toBigInt() * s_inv) % this.K.curve.n.toBigInt()); 
+    const lhs = this.K.G.mul(u1).add(this.K.point.mul(u2));
+    if (lhs.x.toBigInt() === this.R.x.toBigInt() && lhs.y.toBigInt() === this.R.y.toBigInt()) {
+      return true; 
+    }
+    else {
+      return false; 
+    }
+  }
 }

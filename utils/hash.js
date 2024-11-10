@@ -40,6 +40,10 @@ export function expmod(base, exponent, modulus) {
   return result;
 }
 
+function sha256_string(stream) {
+  return new Hex(crypto.createHash("sha256").update(stream).digest('hex'));
+}
+
 function sha256_hex(stream) {
   return new Hex(crypto.createHash("sha256").update(stream.stream).digest('hex'));
 }
@@ -54,6 +58,9 @@ export function sha256(stream) {
   }
   else if (stream instanceof Hex) {
     return sha256_hex(stream); 
+  }
+  else if (typeof stream == "string") {
+    return sha256_string(stream); 
   }
   else {
     throw Error("Not a valid input type.");
