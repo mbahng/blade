@@ -2,6 +2,7 @@ import assert from "assert/strict";
 import { Hex, dec_to_hex } from "../utils/bytestream.js";
 import { randomInt } from "../utils/primes.js";
 import { sha256, hmac_sha512 } from "../utils/hash.js";
+import { warn } from "console";
 
 export function inverse(a, p) {
   if (a instanceof Hex) {
@@ -216,6 +217,7 @@ export class PublicEccKey {
     this.last_key_index = 0n;
     this.children = new Map();  
     this.path = path ; // g for genesis key
+    this.txos = [];
   }
 
   ckd() {
@@ -238,11 +240,15 @@ export class PublicEccKey {
     this.last_key_index += 1n; 
     return cpub_key;
   }
+
+  txos() {
+    return this.txos; 
+  }
 }
 
 export class PrivateEccKey {
   // Non-hardened, perhaps extended key
-  constructor(curve, k, K, G, chain, path="g") {
+  constructor(curve, k, K, G, chain, keypair, path="g") {
     this.k = k; 
     this.K = K; 
     this.G = G; 
@@ -251,6 +257,7 @@ export class PrivateEccKey {
     this.last_key_index = 0n;
     this.children = new Map(); 
     this.path = path ; // g for genesis key
+    this.keypair = keypair; 
   }
 
   ckd() {
@@ -287,6 +294,10 @@ export class PrivateEccKey {
     ) % this.curve.n.toBigInt(); 
     return new EcdsaSignature(hashed_m, R, Hex.fromBigInt(s), this.K); 
   }
+
+  txos() {
+    return this.keypair.txos(); 
+  }
 }
 
 export class EccKeyPair {
@@ -307,7 +318,11 @@ export class EccKeyPair {
     // compute public key 
     const public_point = G.mul(private_key);
     this.public = new PublicEccKey(this.curve, public_point, G, chain);
-    this.private = new PrivateEccKey(this.curve, private_key, this.public, G, chain); 
+    this.private = new PrivateEccKey(this.curve, private_key, this.public, G, chain, this); 
+  }
+  
+  txos() {
+    return this.public.txos; 
   }
 }
 

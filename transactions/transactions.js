@@ -5,26 +5,26 @@ import { sha256 } from "../utils/hash.js";
 
 export class TransactionInput {
   // containers that track the money one spends. 
-  constructor(prev_tx_hash, output_index, signature) {
-    assert(prev_tx_hash instanceof Hex);
+  constructor(address, value, prev_tx) {
+    assert(prev_tx instanceof Transaction);
     assert(typeof output_index === "bigint");
     assert(signature instanceof Hex);
 
-    this.prev_tx_hash = prev_tx_hash; 
-    this.output_index = output_index;
-    this.signature = signature; 
-    this.timestamp = Date.now(); 
+    this.address = address;   // address of spender 
+    this.value = value; // amount in satoshis
+    this.prev_tx = prev_tx; // previous transaction 
   }
 }
 
 export class TransactionOutput { 
   // containers that track the money one gains. 
-  constructor(amount, pubkey) {
-    assert(pubkey instanceof PublicEccKey);
-    assert(typeof amount === 'bigint');
-    this.amount = amount;  // amount in satoshis
-    this.pubkey = pubkey;
-    this.timestamp = Date.now(); 
+  constructor(address, value) {
+    assert(address instanceof PublicEccKey);
+    assert(typeof value === 'bigint');
+    this.address = address; // address of receiver, pubkey
+    this.value = value;     // amount in satoshis
+    this.spent = false;     // is this spent on a future transaction? 
+    this.spender = null;    // if so, who is the spender? 
   }
 }
 
@@ -39,6 +39,7 @@ export class Transaction {
     this.inputs = inputs; 
     this.outputs = outputs; 
     this.id = this.calc_id();
+    this.timestamp = Date.now(); 
   }
 
   calc_id() {
@@ -46,7 +47,7 @@ export class Transaction {
     // and hashing it 
     let data = "";
     for (let input_tx of this.inputs) { data += input_tx.prev_tx_hash.stream; } 
-    for (let output_tx of this.outputs) {data += output_tx.amount.toString(); } 
+    for (let output_tx of this.outputs) {data += output_tx.value.toString(); } 
     return sha256(data);
   }
 }
