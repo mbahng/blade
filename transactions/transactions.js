@@ -1,5 +1,4 @@
 import assert from "assert/strict";
-import { Hex } from "../utils/bytestream.js";
 import { PublicEccKey } from "../keys/ecc.js";
 import { sha256 } from "../utils/hash.js";
 

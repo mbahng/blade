@@ -4,6 +4,11 @@ import { TransactionOutput, Transaction } from "../transactions/transactions.js"
 
 export class Wallet {
   constructor(master_keypair) {
+    /**
+    * A hierarchical wallet with a master ECC keypair 
+    * @constructor 
+    * @param {EccKeyPair} master_keypair
+    */
     assert(master_keypair instanceof EccKeyPair); 
     this.master_keypair = master_keypair; 
   }
@@ -37,20 +42,24 @@ export class Wallet {
   }
 
   send(receiver_key, value) {
-    // Generates a transaction to be pushed onto the blockchain. 
-    // send to Public Key to preserve anonymity
-    assert(receiver_key instanceof PublicEccKey); 
-    assert(typeof value === "bigint");
+    /**
+    * Generates a transaction to be pushed onto the blockchain. 
+    * send to Public Key to preserve anonymity 
+    * @constructor 
+    * @param {PublicEccKey} receiver_key - should be specific address, not a wallet 
+    * @param {BigInt} value   -- number of satoshis to send  
+    * @returns {Transaction} - the transaction object representing the sending  
+    */
 
     // scan txos from first time to last time on blockchain to accumulate txi 
     let accum = 0n;  
     let txi_list = []; 
     for (let txo of this.txos()) {
+      if (accum >= value) { break; }
       if (!txo.spent) {
         accum += txo.value; 
         // convert txo to txi and then push
         txi_list.push(txo.convert_to_txi());
-      if (accum >= value) { break; }
       }
       // do not update txo.spent variable here until it is added to blockchain
     }

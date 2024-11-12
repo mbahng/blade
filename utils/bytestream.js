@@ -134,6 +134,10 @@ export class Bin {
 
 export class Hex {
   constructor(stream) {
+    /**
+    * @constructor 
+    * @param {string} stream
+    */
     if (typeof stream === 'string') {
       stream = stream.toUpperCase();
       if (!check_hex_integrity(stream)) {
@@ -147,6 +151,9 @@ export class Hex {
   }
 
   toString() {
+    /**
+    * @returns {string} 
+    */
     return this.stream;
   }
   

@@ -1,4 +1,4 @@
-import { Bin, Hex, hex_to_bin } from "./bytestream.js";
+import { Bin, Hex } from "./bytestream.js";
 import crypto from "crypto"; 
 import assert from "assert/strict"; 
 

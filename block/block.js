@@ -15,7 +15,7 @@ export class MerkleNode {
 }
 
 export class Block {
-  constructor(prev_block_hash, transactions, height, nonce) {
+  constructor(prev_block_hash, transactions, height, nonce, difficulty) {
     assert(prev_block_hash instanceof Hex || prev_block_hash === null);
     for (let tx of transactions) {
       assert(tx instanceof Transaction);
@@ -32,7 +32,7 @@ export class Block {
     this.merkletree = this.create_merkle_tree(); 
 
     // mining attributes 
-    this.difficulty = new Hex("0030000000000003A30C00000000000000000000000000000000000000000000"); 
+    this.difficulty = difficulty;
     this.nonce = nonce; // at what nonce was this block successfully mined 
 
     this.id = null;  
@@ -85,10 +85,12 @@ export class Block {
 }
 
 export class BlockChain {
-  constructor() {
+  constructor(difficulty, reward) {
     const genesis = new Block(null, [], 0, 0n); 
     this.chain = [genesis]; 
     this.pending_transactions = [];
+    this.difficulty = difficulty; 
+    this.reward = reward;
   }
 
   add_transaction(tx) {
@@ -96,13 +98,21 @@ export class BlockChain {
     this.pending_transactions.push(tx); 
   }
 
-  mint(value, keypair) { 
+  mint(value, keypair, genesis = false) { 
     // adds initial balance to wallets. Only for testing. 
     assert(typeof value === "bigint"); 
     assert(keypair instanceof EccKeyPair); 
-    const new_utxo = new TransactionOutput(keypair.public, value); 
+    const new_utxo = new TransactionOutput(keypair.public, value);  
     let tx = new Transaction([], [new_utxo]); 
-    this.add_transaction(tx);
+    if (genesis) {
+      // force transaction to genesis block
+      this.chain[0].txs.push(tx);  
+      // then add a pointer from the receiver wallet to this txo for tracking
+      tx.outputs[0].address.txos.push(tx.outputs[0]);
+    }
+    else {
+      this.add_transaction(tx);
+    }
   }
 
   receive_block(block, miner) { 
@@ -116,9 +126,11 @@ export class BlockChain {
     }
   }
   
-  accept_block(block, miner) {
-    assert(block instanceof Block);
-    assert(miner instanceof Miner);
+  accept_block(block, miner) { 
+    /**
+    * @param {Block} block 
+    * @param {Miner} miner
+    */
     // update the transactions in the block 
     for (let tx of block.txs) {
       for (let txi of tx.inputs) {
@@ -144,7 +156,7 @@ export class BlockChain {
     this.pending_transactions = this.pending_transactions.slice(i); 
 
     // reward the owner of the miner with coins sent in THIS block
-    const reward_txo = new TransactionOutput(miner.owner_pubkey, 625n); 
+    const reward_txo = new TransactionOutput(miner.owner_pubkey, this.reward); 
     let reward_tx = new Transaction([], [reward_txo]); 
     block.txs.push(reward_tx); 
     // this is now in the block, but it should be updated in the utxo list in wallet 
