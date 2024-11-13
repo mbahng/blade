@@ -131,7 +131,7 @@ export class BlockChain {
     */
     for (let miner of this.miners) {
       if (miner != from) {
-        miner.signal_next = True; 
+        miner.signal_next = true; 
       }
     }
   }
