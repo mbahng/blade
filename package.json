@@ -3,13 +3,17 @@
   "version": "1.0.0",
   "description": "Blade is a lightweight Blockchain and encryption library for my personal use.",
   "type": "module",
-  "main": "main.js",
+  "main": "index.js",
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
-  "keywords": [],
+  "keywords": ["blockchain", "cryptocurrency", "bitcoin"],
   "author": "",
   "license": "ISC",
+  "files": [
+    "src/", 
+    "index.js"
+  ],
   "dependencies": {
     "typescript": "^5.6.3"
   },
