@@ -3,6 +3,7 @@ import { BlockChain, Block } from "../block/block.js";
 import { secp256k1 } from "../keys/ecc.js";
 import { Hex } from "../utils/bytestream.js";
 import { Transaction } from "../transactions/transactions.js";
+import { Wallet } from "../keys/wallet.js";
 
 describe("Miner", () => {
   let miner;
@@ -74,101 +75,143 @@ describe("Miner", () => {
 
   describe("Mining Control", () => {
     test("starts mining process", () => {
-      miner.start();
+      miner.start(false);
       expect(miner.isRunning).toBe(true);
       miner.stop(); // Cleanup
     });
 
     test("stops mining process", () => {
-      miner.start();
+      miner.start(false);
       miner.stop();
       expect(miner.isRunning).toBe(false);
     });
 
     test("doesn't start multiple mining processes", () => {
-      miner.start();
+      miner.start(false);
       const isRunningBefore = miner.isRunning;
-      miner.start();
+      miner.start(false);
       expect(isRunningBefore).toBe(miner.isRunning);
       miner.stop(); // Cleanup
     });
   });
 
   describe("Mining Process", () => {
-    // test("mines block with valid proof of work", async () => {
-    //   // Set very easy difficulty for quick testing
-    //   blockchain.difficulty = new Hex("FFFF");
-    //  
-    //   miner.start();
-    //  
-    //   // Wait for at least one block to be mined
-    //   await new Promise(resolve => {
-    //     const checkInterval = setInterval(() => {
-    //       if (blockchain.chain.length > 1) {
-    //         clearInterval(checkInterval);
-    //         resolve();
-    //       }
-    //     }, 100);
-    //   });
-    //
-    //   miner.stop();
-    //
-    //   const minedBlock = blockchain.chain[1];
-    //   expect(minedBlock.id.toBigInt()).toBeLessThan(minedBlock.difficulty.toBigInt());
-    // }, 10000); // Longer timeout for mining
+    test("maintains correct balance equality after transactions for 1 miner", async () => {
+      // Set up test environment with controlled difficulty
+      const difficulty = new Hex("0001000000000003A30C00000000000000000000000000000000000000000000");
+      const reward = 10n;
+      const blockchain = new BlockChain(difficulty, reward);
+      
+      // Create wallets
+      const M = Wallet.random();
+      const S = Wallet.random();
+      
+      // Set up miner
+      const M_miner = new Miner(M.master_keypair.public, blockchain);
+      blockchain.add_miner(M_miner);
+      
+      // Start mining with verbose = false to avoid logging in tests
+      M_miner.start(false); 
+      
+      // Wait for first block to be mined
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      // Create and add transaction
+      const tx1 = M.send(S.master_keypair.public, 1n);
+      
+      // Check balance equality before adding transaction
+      const beforeBalance = M.balance() + S.balance() + blockchain.pending_withheld();
+      const beforeCirculation = 10n * BigInt(blockchain.chain.length - 1);
+      expect(beforeBalance).toBe(beforeCirculation);
+      
+      // Add transaction
+      blockchain.add_transaction(tx1);
+      
+      // Check balance equality after adding transaction
+      const afterBalance = M.balance() + S.balance() + blockchain.pending_withheld();
+      const afterCirculation = 10n * BigInt(blockchain.chain.length - 1);
+      expect(afterBalance).toBe(afterCirculation);
+      
+      // Clean up
+      M_miner.stop();
+    }, 10000); // Increased timeout to allow for mining
 
-    // test("updates nonce during mining", async () => {
-    //   const initialNonce = miner.nonce;
-    //   miner.start();
-    //  
-    //   // Wait a bit and check if nonce changed
-    //   await new Promise(resolve => setTimeout(resolve, 100));
-    //  
-    //   const newNonce = miner.nonce;
-    //   miner.stop();
-    //  
-    //   expect(newNonce).not.toBe(initialNonce);
-    // });
-    //
-    // test("restarts mining with new transactions", async () => {
-    //   miner.start();
-    //  
-    //   // Add new transaction after mining starts
-    //   await new Promise(resolve => setTimeout(resolve, 100));
-    //   blockchain.add_transaction(new Transaction([], []));
-    //  
-    //   // Wait a bit to ensure mining process noticed new transaction
-    //   await new Promise(resolve => setTimeout(resolve, 200));
-    //  
-    //   miner.stop();
-    //  
-    //   // Verify the mined block includes the new transaction
-    //   // Note: This might be flaky if block is mined before new transaction is added
-    //   if (blockchain.chain.length > 1) {
-    //     expect(blockchain.chain[1].txs.length).toBeGreaterThan(0);
-    //   }
-    // });
+    test("maintains correct balance equality after transactions for 2 miners", async () => {
+      // Set up test environment with controlled difficulty
+      const difficulty = new Hex("0001000000000003A30C00000000000000000000000000000000000000000000");
+      const reward = 10n;
+      const blockchain = new BlockChain(difficulty, reward);
+      
+      // Create wallets
+      const M = Wallet.random();
+      const S = Wallet.random();
+      
+      // Set up miner
+      const M_miner = new Miner(M.master_keypair.public, blockchain); 
+      const S_miner = new Miner(S.master_keypair.public, blockchain); 
+      blockchain.add_miner(M_miner);
+      blockchain.add_miner(S_miner);
+      
+      // Start mining with verbose = false to avoid logging in tests
+      M_miner.start(false); 
+      S_miner.start(false); 
+      
+      // Wait for first block to be mined
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      // Create and add transaction
+      const tx1 = M.send(S.master_keypair.public, 1n);
+      const tx2 = S.send(M.master_keypair.public, 2n); 
+      
+      // Check balance equality before adding transaction
+      const beforeBalance = M.balance() + S.balance() + blockchain.pending_withheld();
+      const beforeCirculation = 10n * BigInt(blockchain.chain.length - 1);
+      expect(beforeBalance).toBe(beforeCirculation);
+      
+      // Add transaction
+      blockchain.add_transaction(tx1);
+      
+      // Check balance equality after adding transaction
+      const afterBalance = M.balance() + S.balance() + blockchain.pending_withheld();
+      const afterCirculation = 10n * BigInt(blockchain.chain.length - 1);
+      expect(afterBalance).toBe(afterCirculation);
+      
+      // Clean up
+      M_miner.stop();
+    }, 10000); // Increased timeout to allow for mining
+
+    test("transaction marked as spent correctly", async () => {
+      const difficulty = new Hex("0001000000000003A30C00000000000000000000000000000000000000000000");
+      const reward = 10n;
+      const blockchain = new BlockChain(difficulty, reward);
+      
+      const M = Wallet.random();
+      const S = Wallet.random();
+      const M_miner = new Miner(M.master_keypair.public, blockchain);
+      blockchain.add_miner(M_miner);
+      
+      M_miner.start(false);
+      
+      // Wait for first block to be mined
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      const tx = M.send(S.master_keypair.public, 1n); 
+
+      // at this point, the tx should not be affected since we only 
+      // create a transaction but do not submit it
+      for (let txi of tx.inputs) {
+        expect(txi.prev_txo.spent).toBe(false); 
+      }
+     
+      // once we add it to the blockchain, then the paid money is only removed 
+      // and the money is received upon the next block add 
+      blockchain.add_transaction(tx);
+      for (let txi of tx.inputs) {
+        expect(txi.prev_txo.spent).toBe(true); 
+      }
+      
+      // Clean up
+      M_miner.stop();
+    }, 10000);
   });
-
-  // describe("Error Handling", () => {
-  //   test("handles errors gracefully", async () => {
-  //     // Mock compute_hash to throw error
-  //     const originalComputeHash = miner.compute_hash;
-  //     miner.compute_hash = jest.fn().mockImplementation(() => {
-  //       throw new Error("Test error");
-  //     });
-  //
-  //     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-  //    
-  //     miner.start();
-  //     await new Promise(resolve => setTimeout(resolve, 200));
-  //     miner.stop();
-  //
-  //     expect(consoleSpy).toHaveBeenCalled();
-  //    
-  //     // Cleanup
-  //     miner.compute_hash = originalComputeHash;
-  //     consoleSpy.mockRestore();
-  //   });
-  // });
 });

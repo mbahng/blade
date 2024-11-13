@@ -12,6 +12,7 @@ export class Miner {
     this.blockchain = blockchain;
     this.nonce = 0n;
     this.isRunning = false;
+    this.signal_next = false; 
   }
 
   compute_hash(block, nonce) {
@@ -39,11 +40,11 @@ export class Miner {
     return new_block; 
   }
 
-  start() {
+  start(verbose = true) {
     // Start continuous mining process
     if (this.isRunning) return;
     this.isRunning = true;
-    this.continuousMine();
+    this.continuousMine(verbose);
   }
 
   stop() {
@@ -51,7 +52,7 @@ export class Miner {
     this.isRunning = false;
   }
 
-  async continuousMine() {
+  async continuousMine(verbose) {
     while (this.isRunning) {
       try {
         let candidate_block = this.construct_candidate_block();
@@ -73,19 +74,28 @@ export class Miner {
               candidate_block = this.construct_candidate_block();
             }
           }
+          
+          // check for if the blockchain singaled to go to the next block
+          if (this.signal_next) {
+            candidate_block = this.construct_candidate_block(); 
+          }
         } while (candidate_id.toBigInt() >= candidate_block.difficulty.toBigInt());
 
-        console.log(
-          `${this.owner_pubkey.K.stream.slice(0, 5)}...${this.owner_pubkey.K.stream.slice(-5)} \
-          mined block #${candidate_block.height} with nonce ${this.nonce - 1n}.`
-        );
+        if (verbose) {
+          console.log(
+            `${this.owner_pubkey.K.stream.slice(0, 5)}...${this.owner_pubkey.K.stream.slice(-5)} \
+            mined block #${candidate_block.height} with nonce ${this.nonce - 1n}.`
+          );
+        }
         
         candidate_block.update_id(candidate_id);
         candidate_block.nonce = this.nonce - 1n;
         this.nonce = 0n;
 
         // Submit the mined block
-        this.blockchain.receive_block(candidate_block, this);
+        this.blockchain.receive_block(candidate_block, this); 
+        
+        // tell other nodes in network that this block is mined 
         
         // Small delay before starting next block
         await new Promise(resolve => setTimeout(resolve, 100));

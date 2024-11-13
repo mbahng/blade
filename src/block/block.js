@@ -115,13 +115,51 @@ export class BlockChain {
     this.pending_transactions = [];
     this.difficulty = difficulty; 
     this.reward = reward;
+    this.miners = []
   }
 
+  add_miner(miner) {
+    /**
+    * @param {Miner} miner
+    */
+    this.miners.push(miner);
+  }
+
+  signal_next(from) {
+    /**
+    * @param {Miner} from 
+    */
+    for (let miner of this.miners) {
+      if (miner != from) {
+        miner.signal_next = True; 
+      }
+    }
+  }
+  
   add_transaction(tx) {
     /**
     * @param {Transaction} tx 
-    */
+    */ 
+    
+    // Now update the spent variables in txos
+    // For each txi, takes it source txo and update it to spent 
+    for (let txi of tx.inputs) {
+      txi.prev_txo.spent = true; 
+    }
+    // For the txos, do not add pointers to them from the destination wallets 
+    // yet. This should be done after the block has been accepted. 
+    
     this.pending_transactions.push(tx); 
+  }
+
+  pending_withheld() { 
+    let res = 0n; 
+    for (let tx of this.pending_transactions) {
+      for (let txi of tx.inputs) {
+        res += txi.value; 
+      }
+    }
+    return res; 
   }
 
   mint(value, keypair, genesis = false) { 
@@ -167,13 +205,9 @@ export class BlockChain {
     */
     // update the transactions in the block 
     for (let tx of block.txs) {
-      for (let txi of tx.inputs) {
-        // update so that previous utxos are marked spent 
-        txi.prev_txo.spent = true; 
-      }
-      for (let txo of tx.outputs) {
-        // add the utxos to the respective wallets of the receivers
-        txo.address.txos.push(txo); 
+      // now we add the utxos to the respective wallets of the receivers
+      for (let utxo of tx.outputs) {
+        utxo.address.txos.push(utxo); 
       }
     }
 

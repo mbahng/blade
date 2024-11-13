@@ -136,9 +136,8 @@ describe("BlockChain", () => {
       // Create a transaction with inputs
       const inputTxo = new TransactionOutput(walletKeypair.public, 100n);
       const tx = new Transaction([inputTxo.convert_to_txi()], []);
-      validBlock.txs.push(tx);
       
-      blockchain.receive_block(validBlock, miner);
+      blockchain.add_transaction(tx);
       expect(inputTxo.spent).toBe(true);
     });
 
