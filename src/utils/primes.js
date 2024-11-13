@@ -15,7 +15,11 @@ function getLowPrimes(n) {
 const lowPrimes = getLowPrimes(5000);
 
 export function randomInt(n) {
-  // lower bound, 3.17 is so that product is guaranteed to give 2n binary digits
+  /**
+  * lower bound, 3.17 is so that product is guaranteed to give 2n binary digits 
+  * @param {number} n 
+  * @returns {BigInt}
+  */
   let lb = 3.17 * (2 ** (n-2)); 
   let up = 2 ** n;  // upper bound 
   let x = BigInt(Math.floor(Math.random() * (up - lb) + lb)); 
@@ -84,6 +88,10 @@ function testPrimalityHigh(num, t) {
 }
 
 export function generatePrime(n) { 
+  /**
+  * @param {number} n
+  * @returns {BigInt}
+  */
   while (true) {
     const candidate = randomInt(n);
     if (testPrimalityLow(candidate) && testPrimalityHigh(candidate, 20)) {

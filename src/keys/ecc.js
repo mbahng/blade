@@ -1,16 +1,16 @@
 import assert from "assert/strict";
-import { Hex, dec_to_hex } from "../utils/bytestream.js";
+import { Hex } from "../utils/bytestream.js";
 import { randomInt } from "../utils/primes.js";
 import { sha256, hmac_sha512 } from "../utils/hash.js";
-import { warn } from "console";
 
-export function inverse(a, p) {
-  if (a instanceof Hex) {
-    a = a.toBigInt(); 
-  }
-  if (p instanceof Hex) {
-    p = p.toBigInt(); 
-  }
+export function inverse(a, p) { 
+  /**
+  * @param {Hex | BigInt} a 
+  * @param {Hex | BigInt} p
+  * @returns {Hex}
+  */
+  a = (a instanceof Hex) ? a.toBigInt() : a; 
+  p = (p instanceof Hex) ? p.toBigInt() : p; 
 
   // calculate modular inverse using extended Euclidean algo 
   // solve x satisfying ax \equiv 1 (mod p)
@@ -54,20 +54,36 @@ export function inverse(a, p) {
 
 export class EccCurve {
   constructor(p, a, b, n) {
-    assert(a instanceof Hex 
-      && b instanceof Hex 
-      && p instanceof Hex 
-      && n instanceof Hex); 
+    /**
+    * @constructs 
+    * @param {Hex} p
+    * @param {Hex} a
+    * @param {Hex} b
+    * @param {Hex} n
+    */
     this.p = p; 
     this.a = a; 
     this.b = b; 
     this.n = n; 
   }
+
+  eq(other) {
+    return (
+      this.p.eq(other.p) && 
+      this.a.eq(other.a) && 
+      this.b.eq(other.b) && 
+      this.n.eq(other.n)
+    );
+  }
 }
 
 export class EccPoint {
   constructor(x, y, curve) {
-    assert(x instanceof Hex && y instanceof Hex);
+    /**
+    * @param {Hex | null} x 
+    * @param {Hex | null} y 
+    * @param {EccCurve} curve
+    */
     this.x = x; // infinity point is null
     this.y = y; // infinity point is null
     assert(this.x.toBigInt() >= 0n && this.y.toBigInt() >= 0n, 
@@ -78,7 +94,7 @@ export class EccPoint {
   }
 
   eq(other) {
-    return (this.x === other.x && this.y === other.y);
+    return (this.x.eq(other.x) && this.y.eq(other.y) && this.curve.eq(other.curve));
   }
 
   // Point operations
@@ -118,11 +134,7 @@ export class EccPoint {
   }
 
   add(other) {
-    if (
-      this.curve.p != other.curve.p 
-      || this.curve.a != other.curve.a 
-      || this.curve.b != other.curve.b
-    ) {
+    if (!this.curve.eq(other.curve)) {
       throw Error("Two points are not on the same curve.");
     }
     
@@ -155,15 +167,14 @@ export class EccPoint {
     );
   }
 
-  mul(k) {
-    // Validate input
-    assert(typeof k !== 'bigint' || k instanceof Hex);
-    if (k instanceof Hex) {
-      k = k.toBigInt();
-    }
+  mul(k) { 
+    /**
+    * @param {Hex | BigInt} k
+    * @returns {EccPoint}
+    */
+    k = (k instanceof Hex) ? k.toBigInt() : k;
 
-    // Convert k to BigInt if it's a number
-    let scalar = k; 
+    let scalar = k; // Convert k to BigInt if it's a number
     
     // Handle special cases
     if (scalar === 0n) {
@@ -201,7 +212,11 @@ export class EccPoint {
     return result;
   }
 
-  toHex() {
+  toHex() { 
+    /**
+    * Concatenation the x and y coordinate to a single Hex instance  
+    * @returns {Hex}
+    */
     return this.x.concat(this.y);
   }
 }
@@ -209,6 +224,14 @@ export class EccPoint {
 export class PublicEccKey {
   // Non-hardened, perhaps extended key
   constructor(curve, point, G, chain, path="g") {
+    /**
+    * @constructs 
+    * @param {EccCurve} curve 
+    * @param {EccPoint} point
+    * @param {EccPoint} G 
+    * @param {Hex} chain
+    * @param {string} path - path of the key, e.g. g/1/23/456
+    */
     this.point = point; 
     this.K = point.toHex(); 
     this.curve = curve; 
@@ -221,12 +244,12 @@ export class PublicEccKey {
   }
 
   ckd() {
-    // child key derivation function private -> private
-    assert(this.extension !== null, "This must be an extended key."); 
+    // Remove the extension check since we use chain instead
+    assert(this.chain !== null, "This must be an extended key."); 
     let child_key_point; 
     let L; let R; 
     do {
-      const i = Hex.fromBigInt(this.last_key_index); 
+      const i = Hex.fromBigInt(this.last_key_index, 32); 
       const data = this.K.concat(i);
       const I = hmac_sha512(this.chain, data); 
       [L, R] = I.split(); 
@@ -234,10 +257,10 @@ export class PublicEccKey {
       child_key_point = parsed_L.add(this.point);
       this.last_key_index += 1n; 
     } while (L.toBigInt() >= this.curve.n); 
+    
     const child_path = `${this.path}/${this.last_key_index}`;
     let cpub_key = new PublicEccKey(this.curve, child_key_point, this.G, R, child_path);
     this.children.set(child_path, cpub_key);
-    this.last_key_index += 1n; 
     return cpub_key;
   }
 
@@ -249,6 +272,16 @@ export class PublicEccKey {
 export class PrivateEccKey {
   // Non-hardened, perhaps extended key
   constructor(curve, k, K, G, chain, keypair, path="g") {
+    /** 
+    * @constructs 
+    * @param {EccCurve} curve;
+    * @param {Hex} k;
+    * @param {Hex} K;
+    * @param {EccPoint} G;
+    * @param {Hex} chain;
+    * @param {EccKeyPair} keypair;
+    * @param {string} path;
+    */
     this.k = k; 
     this.K = K; 
     this.G = G; 
@@ -261,14 +294,19 @@ export class PrivateEccKey {
   }
 
   ckd() {
-    // child key derivation function private -> private
+    /**
+    * child key derivation function private -> private 
+    * TODO: Should decide on a standard to make keypair children or 
+    * individual private/public key children
+    * @returns {PrivateEccKey} 
+    */
     assert(this.extension !== null, "This must be an extended key."); 
     let child_priv_key_val;
     let L; let R; 
     do {
       // should enter while loop with probability < 2^{-127} 
       const i = Hex.fromBigInt(this.last_key_index, 32);
-      const data = this.K.concat(i);
+      const data = this.K.concat(i); 
       const I = hmac_sha512(this.chain, data); 
       [L, R] = I.split(); 
       child_priv_key_val = (L.toBigInt() + this.k.toBigInt()) % (this.curve.n.toBigInt());
@@ -277,14 +315,18 @@ export class PrivateEccKey {
 
     child_priv_key_val = Hex.fromBigInt(child_priv_key_val);
     let child_pub_key_val = this.G.mul(child_priv_key_val); 
-    const child_path = `${this.path}/${this.last_key_index}`;
-    let cpriv_key = new PrivateEccKey(this.curve, child_priv_key_val, child_pub_key_val.toHex(), this.G, R, child_path); 
+    const child_path = `${this.path}/${this.last_key_index - 1n}`;
+    let cpriv_key = new PrivateEccKey(this.curve, child_priv_key_val, child_pub_key_val.toHex(), this.G, R, this.keypair, child_path); 
     this.children.set(child_path, cpriv_key);
-    this.last_key_index += 1n; 
     return cpriv_key;  
   }
 
   create_signature(m) { // m = message
+    /**
+    * m = message to be encrypted  which can be unlocked and verified by receiver
+    * @param {string} m
+    * @returns {EcdsaSignature}
+    */
     let hashed_m = sha256(m); 
     const r = Hex.random(256); 
     const R = this.G.mul(r); 
@@ -292,7 +334,7 @@ export class PrivateEccKey {
     const s = (r_inv.toBigInt() * (
       hashed_m.toBigInt() + this.k.toBigInt() * R.x.toBigInt())
     ) % this.curve.n.toBigInt(); 
-    return new EcdsaSignature(hashed_m, R, Hex.fromBigInt(s), this.K); 
+    return new EcdsaSignature(hashed_m, R, Hex.fromBigInt(s), this.keypair.public); 
   }
 
   txos() {
@@ -304,6 +346,11 @@ export class EccKeyPair {
   // Constructor should not be called directly, since there are defined 
   // standards for what p, a, b, G should be
   constructor(G, extended) {
+    /**
+    * @constructs 
+    * @param {EccPoint} G 
+    * @param {Boolean} extended 
+    */
     this.curve = G.curve; 
     let chain; 
     if (extended) {
@@ -318,7 +365,7 @@ export class EccKeyPair {
     // compute public key 
     const public_point = G.mul(private_key);
     this.public = new PublicEccKey(this.curve, public_point, G, chain);
-    this.private = new PrivateEccKey(this.curve, private_key, this.public, G, chain, this); 
+    this.private = new PrivateEccKey(this.curve, private_key, this.public.K, G, chain, this); 
   }
   
   txos() {
@@ -378,7 +425,14 @@ export function secp256r1(extended) {
 }
 
 export class EcdsaSignature {
-  constructor(m, R, s, K) {
+  constructor(m, R, s, K) { 
+    /**
+    * @constructs 
+    * @param {string} m 
+    * @param {EccPoint} R 
+    * @param {Hex} s
+    * @param {PublicEccKey} K
+    */
     this.m = m;   // hashed message
     this.R = R;   // signature component created with private key
     this.s = s;   // signature component created with private key
@@ -386,6 +440,10 @@ export class EcdsaSignature {
   }
 
   verify() { 
+    /**
+    * verifies if this signature is coming from the correct person
+    * @return {Boolean} 
+    */
     const s_inv = inverse(this.s.toBigInt(), this.K.curve.n).toBigInt();
     const u1 = Hex.fromBigInt((this.m.toBigInt() * s_inv) % this.K.curve.n.toBigInt()); 
     const u2 = Hex.fromBigInt((this.R.x.toBigInt() * s_inv) % this.K.curve.n.toBigInt()); 

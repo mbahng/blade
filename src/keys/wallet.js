@@ -1,4 +1,3 @@
-import assert from "assert/strict"; 
 import { EccKeyPair, secp256k1, PublicEccKey } from "./ecc.js";
 import { TransactionOutput, Transaction } from "../transactions/transactions.js";
 
@@ -8,8 +7,7 @@ export class Wallet {
     * A hierarchical wallet with a master ECC keypair 
     * @constructor 
     * @param {EccKeyPair} master_keypair
-    */
-    assert(master_keypair instanceof EccKeyPair); 
+    */ 
     this.master_keypair = master_keypair; 
   }
 
@@ -31,7 +29,10 @@ export class Wallet {
     return res; 
   }
 
-  balance() {
+  balance() { 
+    /**
+    * @returns {BigInt} 
+    */
     let balance = 0n; 
     for (let txo of this.txos()) { 
       if (!txo.spent) {

@@ -3,7 +3,7 @@ import { Wallet } from "./keys/wallet.js";
 import { Miner } from "./miners/miners.js"
 import { Hex } from "./utils/bytestream.js";
 
-const difficulty = new Hex("0000090000000003A30C00000000000000000000000000000000000000000000");  
+const difficulty = new Hex("00000F0000000003A30C00000000000000000000000000000000000000000000");  
 const reward = 10n;
 
 const chain = new BlockChain(difficulty, reward);

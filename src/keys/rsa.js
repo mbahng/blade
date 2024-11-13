@@ -5,8 +5,12 @@ import assert from "assert/strict";
 
 class PublicRsaKey {
   // Public key class. Should not be instantiated directly. 
-  
   constructor(number, k) {
+    /**
+    * @constructs 
+    * @param {BigInt} number
+    * @param {BigInt} k
+    */
 
     this.n = new Hex(dec_to_hex(String(number)));
     this.k = new Hex(dec_to_hex(String(k)));
@@ -28,14 +32,20 @@ class PrivateRsaKey {
   // Private key class. Should not be instantiated directly. 
 
   constructor(p, q, k) {
+    /**
+    * @constructs 
+    * @param {BigInt} p 
+    * @param {BigInt} q
+    * @param {BigInt} k
+    */
     this.p = new Hex(dec_to_hex(String(p))); 
     this.q = new Hex(dec_to_hex(String(q))); 
     this.k = new Hex(dec_to_hex(String(k))); 
 
     // just big ints
-    this.p_ = BigInt(p); 
-    this.q_ = BigInt(q); 
-    this.k_ = BigInt(k); 
+    this.p_ = p; 
+    this.q_ = q; 
+    this.k_ = k; 
     this.n_ = this.p_ * this.q_; 
   }
 
@@ -77,6 +87,10 @@ class PrivateRsaKey {
 
 export class RsaKeyPair {
   constructor(bitlen) { 
+    /**
+    * @constructs 
+    * @param {number} bitlen
+    */
     assert(bitlen % 8 == 0); 
     const p = generatePrime(bitlen/2); 
     const q = generatePrime(bitlen/2); 

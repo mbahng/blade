@@ -2,7 +2,7 @@ import assert from "assert/strict";
 
 export function check_bin_integrity(string) {
   for (let i = 0; i < string.length; i++) {
-    if (parseInt(string[i], 2) >= 2) {
+    if (string[i] !== '0' && string[i] !== '1') {
       return false; 
     }
   }
@@ -96,7 +96,7 @@ export function bin_to_dec(bin) {
     throw new Error("Not a hex. ");
   }
 
-  res = 0n; 
+  let res = 0n; 
   for (let i = 0; i < bin.length-1; i++) {
     res = (res + BigInt(parseInt(bin[i], 2))) * 2n;
   }
@@ -161,6 +161,10 @@ export class Hex {
     return BigInt(`0x${this.stream}`);
   }
 
+  toBin() {
+    return new Bin(hex_to_bin(this.stream));
+  }
+
   static fromBigInt(x, len=null) {
     if (typeof x !== 'bigint') {
       throw new Error("Input must be a BigInt");
@@ -172,7 +176,6 @@ export class Hex {
       assert(len % 4 === 0);
       return new Hex(dec_to_hex(x.toString()).padStart(len / 4, "0"));
     }
-    
   }
 
   static fromHex(x) {
@@ -187,6 +190,10 @@ export class Hex {
       .map(b => b.toString(16).padStart(2, '0'))
       .join('')
       .toUpperCase());
+  }
+
+  eq(other) {
+    return (this.stream === other.stream && this.length === other.length);
   }
 
   add(other) {

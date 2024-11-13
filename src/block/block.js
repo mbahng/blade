@@ -7,7 +7,12 @@ import { Miner } from "../miners/miners.js";
 
 export class MerkleNode {
   constructor(value, left = null, right = null) {
-    assert(value instanceof Hex);
+    /**
+    * @constructs 
+    * @param {Hex} value 
+    * @param {MerkleNode | null} left
+    * @param {MerkleNode | null} right 
+    */
     this.value = value; 
     this.left = left; 
     this.right = right; 
@@ -16,10 +21,14 @@ export class MerkleNode {
 
 export class Block {
   constructor(prev_block_hash, transactions, height, nonce, difficulty) {
-    assert(prev_block_hash instanceof Hex || prev_block_hash === null);
-    for (let tx of transactions) {
-      assert(tx instanceof Transaction);
-    } 
+    /**
+    * @constructs  
+    * @param {Hex | null} prev_block_hash  
+    * @param {Transaction[]} transactions 
+    * @param {number} height 
+    * @param {BigInt} nonce 
+    * @param {Hex} difficulty
+    */
     assert(typeof height === "number"); 
     assert(typeof nonce === "bigint");
     this.version = new Hex("0"); 
@@ -42,6 +51,10 @@ export class Block {
   }
 
   create_merkle_tree() {
+    /**
+    * create a Merkle tree used for SPV nodes 
+    * @returns {MerkleNode} 
+    */
     if (this.txs.length === 0) {
       return new MerkleNode(new Hex("0"));
     }
@@ -51,7 +64,11 @@ export class Block {
     return this.build_tree_level(leaves);
   }
 
-  build_tree_level(nodes) {
+  build_tree_level(nodes) { 
+    /**
+    * @param {MerkleNode[]} nodes 
+    * @returns {MerkleNode}
+    */
     // If we have only one node, it's the root
     if (nodes.length === 1) {
       return nodes[0];
@@ -78,7 +95,9 @@ export class Block {
   }
   
   update_id(id) {
-    assert(id instanceof Hex); 
+    /**
+    * @param {Hex} id 
+    */
     assert(id.toBigInt() < this.difficulty.toBigInt()); 
     this.id = id; 
   } 
@@ -86,6 +105,11 @@ export class Block {
 
 export class BlockChain {
   constructor(difficulty, reward) {
+    /**
+    * @constructs  
+    * @param {Hex} difficulty  
+    * @param {BigInt} reward
+    */
     const genesis = new Block(null, [], 0, 0n); 
     this.chain = [genesis]; 
     this.pending_transactions = [];
@@ -94,14 +118,20 @@ export class BlockChain {
   }
 
   add_transaction(tx) {
-    assert(tx instanceof Transaction); 
+    /**
+    * @param {Transaction} tx 
+    */
     this.pending_transactions.push(tx); 
   }
 
   mint(value, keypair, genesis = false) { 
-    // adds initial balance to wallets. Only for testing. 
-    assert(typeof value === "bigint"); 
-    assert(keypair instanceof EccKeyPair); 
+    /**
+    * adds initial balance to wallets. Only for testing.  
+    * @param {BigInt} value 
+    * @param {EccKeyPair} keypair
+    * @param {Boolean} genesis - determines whether we put tx in genesis
+    * block from the beginning or in pending transactions to be added later
+    */
     const new_utxo = new TransactionOutput(keypair.public, value);  
     let tx = new Transaction([], [new_utxo]); 
     if (genesis) {
@@ -116,8 +146,11 @@ export class BlockChain {
   }
 
   receive_block(block, miner) { 
-    assert(block instanceof Block);
-    assert(miner instanceof Miner);
+    /**
+    * generic receive function for getting block 
+    * @param {Block} block 
+    * @param {Miner} miner
+    */
     if (block.id.toBigInt() < block.difficulty.toBigInt()) {
       this.accept_block(block, miner);
     }
@@ -128,6 +161,7 @@ export class BlockChain {
   
   accept_block(block, miner) { 
     /**
+    * function is called in this.receive_block() if it satisfies proof-of-work
     * @param {Block} block 
     * @param {Miner} miner
     */

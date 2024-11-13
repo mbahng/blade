@@ -1,34 +1,25 @@
-import { Bin, Hex } from "./bytestream.js";
+import { Bin, Hex, Stream } from "./bytestream.js";
 import crypto from "crypto"; 
-import assert from "assert/strict"; 
 
 export function expmod(base, exponent, modulus) {
+  /**
+  * @param {Hex | BigInt} base 
+  * @param {Hex | BigInt} exponent 
+  * @param {Hex | BigInt} modulus
+  */
 
-  assert(base instanceof Hex || typeof(base) == "bigint"); 
-  assert(exponent instanceof Hex || typeof(exponent) == "bigint"); 
-  assert(exponent instanceof Hex || typeof(exponent) == "bigint"); 
+  base = (base instanceof Hex) ? base.toBigInt() : base; 
+  exponent = (exponent instanceof Hex) ? exponent.toBigInt() : exponent; 
+  modulus = (modulus instanceof Hex) ? modulus.toBigInt() : modulus; 
 
-  if (base instanceof Hex) {
-    base = base.toBigInt(); 
-  }
-  if (exponent instanceof Hex) {
-    exponent = exponent.toBigInt(); 
-  }
-  if (base instanceof Hex) {
-    modulus = modulus.toBigInt(); 
-  }
-
-  if (modulus === 1n) {
-    return 0n;
-  }
+  // some edge case checking 
+  if (modulus === 1n) return 0n; 
   if (exponent < 0n) throw new Error("Exponent must be non-negative");
-  
   base = base % modulus;
   if (base === 0n) return 0n;
   if (exponent === 0n) return 1n;
   
   let result = 1n;
-  
   while (exponent > 0n) {
     if (exponent & 1n) {
       result = (result * base) % modulus;
@@ -36,7 +27,6 @@ export function expmod(base, exponent, modulus) {
     base = (base * base) % modulus;
     exponent = exponent >> 1n;
   }
-  
   return result;
 }
 
@@ -53,11 +43,17 @@ function sha256_bin(stream) {
 }
 
 export function sha256(stream) {
+  /**
+  * @param {Bin|Hex|Stream|string} stream 
+  */
   if (stream instanceof Bin) {
     return sha256_bin(stream);
   }
   else if (stream instanceof Hex) {
     return sha256_hex(stream); 
+  }
+  else if (stream instanceof Stream) {
+    return sha256_string(stream.stream); 
   }
   else if (typeof stream == "string") {
     return sha256_string(stream); 
@@ -68,10 +64,10 @@ export function sha256(stream) {
 }
 
 function hmac_sha512_hex(stream, c) {
-  return new Hex(crypto.createHmac("sha512", Buffer.from(c.stream, "base64")).update(stream.stream).digest('hex'));
-}
-
-function hmac_sha512_bin(stream, c) {
+  /**
+  * @param {Hex} stream
+  * @param {Hex} c 
+  */
   return new Hex(crypto.createHmac("sha512", Buffer.from(c.stream, "base64")).update(stream.stream).digest('hex'));
 }
 
