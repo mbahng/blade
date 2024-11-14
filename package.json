@@ -7,21 +7,33 @@
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
-  "keywords": ["blockchain", "cryptocurrency", "bitcoin"],
+  "keywords": [
+    "blockchain",
+    "cryptocurrency",
+    "bitcoin"
+  ],
   "author": "",
   "license": "ISC",
   "files": [
-    "src/", 
+    "src/",
     "index.js"
   ],
   "dependencies": {
+    "crypto-js": "^4.2.0",
+    "react": "^18.3.1",
     "typescript": "^5.6.3"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/preset-env": "^7.26.0",
+    "autoprefixer": "^10.4.20",
     "babel-jest": "^29.7.0",
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.14"
+  },
+  "browser": {
+    "crypto": false
   },
   "jest": {
     "transform": {

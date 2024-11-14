@@ -1,0 +1,328 @@
+.game-container {
+  display: flex;
+  gap: 20px;
+}
+
+.sup-info {
+  border: solid 2px green; 
+  display: grid; 
+  width: 300px; 
+}
+
+.property-details {
+  width: 100%;
+  height: 50%;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.bank-balance {
+  position: relative; 
+}
+
+.property-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.property-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #666;
+}
+
+.color-box {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* Add your existing square and board styles here */
+.square {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  justify-content: center;
+  position: relative; 
+  cursor: pointer;
+  transition: transform 0.1s; 
+  border: solid black 1px; 
+}
+
+.square:hover {
+  transform: scale(1.05);
+}
+
+.square-popup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Add backdrop when popup is shown */
+.square-popup::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: -1;
+}
+
+
+.square-text {
+  color: black; 
+  background-color: white;
+  font-family: sans-serif;
+  font-size: 14px; 
+  top: 1px; 
+  width: 100%; 
+  height: 20%; 
+  border: solid black 1px; 
+  justify-content: center;
+}
+
+.player-text {
+  color: white; 
+  font-family: sans-serif; 
+  font-size: 12px; 
+  position: absolute; 
+  bottom: 0px; 
+  left: 1px; 
+  right: 1px; 
+  display: flex; 
+  background-color: grey; 
+  text-align: center;
+}
+
+.row {
+  display: flex; 
+}
+
+.center {
+  display: flex; 
+}
+
+.column-left {
+  display: flex; 
+  flex-direction: column; 
+}
+
+.column-right {
+  display: flex; 
+  flex-direction: column; 
+}
+
+.announce {
+  width: 720px; 
+  height: 720px; 
+}
+
+.board {
+  width: 880px; 
+  height: 880px; 
+}
+
+.mint {
+  background-color: #c9e4d6;
+}
+.blue {
+  background-color: #3b82f6;
+}
+.green {
+  background-color: #22c55e;
+}
+.purple {
+  background-color: #a855f7;
+}
+.red {
+  background-color: #ef4444;
+}
+.orange {
+  background-color: #f97316;
+}
+.teal {
+  background-color: #14b8a6;
+}
+.pink {
+  background-color: #ec4899;
+}
+.yellow {
+  background-color: #eab308;
+}
+.indigo {
+  background-color: #6366f1;
+}
+
+.dice-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+}
+
+.dice-result {
+  font-size: 24px;
+  font-family: sans-serif;
+  text-align: center;
+}
+
+.roll-button {
+  padding: 10px 20px;
+  font-size: 18px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.roll-button:hover {
+  background-color: #45a049;
+}
+
+.player-token {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* .player1 { background-color: #ff0000; top: 10px; left: 10px; } */
+/* .player2 { background-color: #00ff00; top: 10px; right: 10px; } */
+/* .player3 { background-color: #0000ff; bottom: 10px; left: 10px; } */
+/* .player4 { background-color: #ffff00; bottom: 10px; right: 10px; } */
+
+.players-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  pointer-events: none;
+}
+
+.player-token1 {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); 
+  color: #ef4444;
+}
+.player-token2 {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: #3b82f6;
+}
+.player-token3 {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: #22c55e;
+}
+.player-token4 {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: #f97316;
+}
+
+.game-info {
+  border: solid 1px black; 
+  display: flex; 
+  width: 98%; 
+}
+
+.player-info {
+  border: solid 1px blue; 
+  display: flex ;
+  flex-direction: column; 
+  width: 25%; 
+  padding: 1%;
+}
+
+.roll-button, .end-turn-button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.roll-button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+}
+
+.end-turn-button {
+  background-color: #f44336;
+  color: white;
+  border: none;
+}
+
+.roll-button:hover, .end-turn-button:hover {
+  opacity: 0.9;
+}
+
+.news {
+  display: flex; 
+  flex-direction: column;
+}
+
+.trade-logs {
+  font-size: 11px;
+  height: 50%; 
+  border: solid 1px blue; 
+}
+
+.mining-logs {
+  font-size: 11px;
+  height: 50%; 
+  border: solid 1px red; 
+  bottom: 0px;
+}

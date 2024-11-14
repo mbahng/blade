@@ -1,4 +1,4 @@
-import { BlockChain, Wallet, Miner, Hex } from "./index.js";
+import { BlockChain, Wallet, Miner, Hex } from "./blade.js";
 
 // initialize difficulty and reward for mining a block 
 const difficulty = new Hex("0000500000000003A30C00000000000000000000000000000000000000000000");  
@@ -27,7 +27,7 @@ setInterval(() => {
   // creates transactions 
   let tx1 = M.send(S.master_keypair.public, BigInt(Math.floor(Math.random() * 5))); 
   let tx2 = S.send(M.master_keypair.public, BigInt(Math.floor(Math.random() * 5)));   
- 
+
   // sends them to the blockchain, the TXIs are used and are "pending" in the blockchain
   blockchain.add_transaction(tx1); 
   blockchain.add_transaction(tx2); 
