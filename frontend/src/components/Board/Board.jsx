@@ -103,10 +103,11 @@ class Player {
      * @param {SquareSpace} property 
      */
     this.assets.push(property);
+    property.owner = this; 
   }
 }
 
-function PropertyDetails({ square }) {
+function PropertyDetails({ square, onBuy, onSell }) {
   if (!square) return (
     <div className="property-details">
       <p>Click on a property to see details</p>
@@ -128,8 +129,8 @@ function PropertyDetails({ square }) {
             <p>Cost Per House: $50</p>
           </> 
         )}
-        <button onClick={() => buy(square.game.currentTurn(), square, BigInt(square.price))}>Buy</button>
-        <button onClick={() => sell(square.game.currentTurn(), square)}>Sell</button>
+        <button onClick={() => onBuy(square.game.currentTurn(), square, BigInt(square.price))}>Buy</button>
+        <button onClick={() => onSell(square.game.currentTurn(), square)}>Sell</button>
       </div>
     </div>
   );
@@ -137,12 +138,24 @@ function PropertyDetails({ square }) {
 
 function Square({ square, game, onSelect }) {
   const playersHere = game.players.filter(player => player.location === square.index);
+  const getOwnerTint = () => {
+    for (let i = 0; i < game.players.length; i++) {
+      if (game.players[i].assets.includes(square)) {
+        return `player-color${i+1}`;
+      }
+    }
+    return '';
+  };
   
   return (
     <div className={`square ${square.color}`} onClick={() => onSelect(square)}>
-      <span className="square-text">
+      <div className={`square-text`}>
         {square.name}
-      </span>
+      </div>
+
+      <div className="houses-container">
+        <div className='house-token'>h</div>
+      </div>
       
       <div className="players-container">
         {playersHere.map((player, idx) => (
@@ -154,35 +167,38 @@ function Square({ square, game, onSelect }) {
           </div>
         ))}
       </div>
+
+      <div className={`square-text ${getOwnerTint()}`}></div>
+
     </div>
   );
 }
 
-function buy(buyer, property, value) {
+function buy(buyer, property) {
   /** 
    * @param {Player} buyer 
    * @param {SquareSpace} property 
-   * @param {BigInt} value
    */ 
   if (buyer.onSquare().name !== property.name) {
     console.log("You are not on this property."); 
-    return;
+    return false;
   }
   if (property.owner.name === buyer.name) {
     console.log("You already own this property.")
-    return;
+    return false;
   }
   if (!property.owner.isbank) {
     console.log(`${property.owner.name} already owns this property.`)
-    return;
+    return false;
   }
   const bank = property.game.bank; 
   const blockchain = property.game.blockchain; 
-  let tx = buyer.wallet.send(bank.wallet.master_keypair.public, value)
+  let tx = buyer.wallet.send(bank.wallet.master_keypair.public, BigInt(property.price));
   blockchain.add_transaction(tx); 
   buyer.addAsset(property); 
 
   console.log(`${buyer.name} bought ${property.name}`);
+  return true; 
 }
 
 function sell(seller, property) {
@@ -190,11 +206,29 @@ function sell(seller, property) {
    * @param {Player} seller 
    * @param {SquareSpace} property 
    */ 
+  if (!seller.assets.includes(property)) {
+    console.log("You do not own this property."); 
+    return false;
+  }
   const bank = property.game.bank; 
   const blockchain = property.game.blockchain; 
-  let tx = bank.wallet.send(seller.wallet.master_keypair.public, value)
+  let tx = bank.wallet.send(seller.wallet.master_keypair.public, BigInt(property.price));
   blockchain.add_transaction(tx);
   console.log(`${seller.name} sold ${property.name}`);
+  return true; 
+}
+
+function pay(payer, receiver, value) {
+  /** 
+   * @param {Player} seller 
+   * @param {SquareSpace} property 
+   */ 
+
+  const blockchain = payer.game.blockchain; 
+  let tx = payer.wallet.send(receiver.wallet.master_keypair.public, BigInt(value));
+  blockchain.add_transaction(tx);
+  console.log(`${payer.name} paid ${value} to ${receiver.name}`);
+  return true; 
 }
 
 function trade(p1, p2, p1assets, p2assets) {
@@ -208,18 +242,25 @@ export function Board() {
   const [hasRolled, setHasRolled] = useState(false); 
   const minerRef = useRef(null);
   const [balanceUpdate, setBalanceUpdate] = useState(0);
+
   const [miningLogs, setMiningLogs] = useState([]);
+  const [gameLogs, setGameLogs] = useState([]);
 
   const addMiningLog = (log) => {
-    setMiningLogs(prevLogs => [...prevLogs.slice(-20), log]); // Keep last 5 logs
+    setMiningLogs(prevLogs => [...prevLogs.slice(-20), log]); 
   };
+  
+  const addGameLog = (log) => {
+    setGameLogs(prevLogs => [...prevLogs.slice(-20), log]); 
+  };
+
 
   // Initialize game and blockchain
   const { game, blockchain } = useMemo(() => {
     console.log('Initializing game and blockchain');
     
     const difficulty = new Hex("0000F00000000003A30C00000000000000000000000000000000000000000000");  
-    const reward = 10n;
+    const reward = 100n;
     const blockchain = new BlockChain(difficulty, reward);
     const game = new Game(blockchain);
 
@@ -283,6 +324,10 @@ export function Board() {
     game.addPlayer(p1);
     const p2 = new Player(2, game);
     game.addPlayer(p2);
+    const p3 = new Player(3, game);
+    game.addPlayer(p3);
+    const p4 = new Player(4, game);
+    game.addPlayer(p4);
 
     return { game, blockchain };
   }, []);
@@ -332,17 +377,49 @@ export function Board() {
     };
   }, []); 
 
+  const handlePay = (payer, receiver, value) => {
+    if (pay(payer, receiver, value)) {
+      addGameLog(`$Player {payer.name} paid $${value} to Player ${receiver.name}`);
+    }
+  };
+
   const rollDice = () => {
     const currentPlayer = game.currentTurn();
+    const oldLocation = currentPlayer.location;
+    const oldSquare = game.assets[oldLocation];
     const newDice = currentPlayer.rollDice();
+    const newLocation = currentPlayer.location;
+    const newSquare = game.assets[newLocation];
+    
+    const moveAmount = (newDice[0] + newDice[1]);
+    addGameLog(`Player ${currentPlayer.name} moved +${moveAmount} spaces from ${oldSquare.name} to ${newSquare.name}`);
+    
     setDiceState(newDice);
-    setHasRolled(true);
+    setHasRolled(true); 
+
+    if (!newSquare.owner.isbank && !(newSquare.owner.name === currentPlayer.name)) {
+      handlePay(currentPlayer, newSquare.owner, newSquare.rent);
+    }
+  };
+
+  const handleBuy = (buyer, property) => {
+    if (buy(buyer, property)) {
+      addGameLog(`Player ${buyer.name} bought ${property.name} for $${property.price}`);
+    }
+  };
+
+  const handleSell = (seller, property) => {
+    if (sell(seller, property)) {
+      addGameLog(`Player ${seller.name} sold ${property.name} for $${property.price}`);
+    }
   };
 
   const endTurn = () => {
+    const currentPlayer = game.currentTurn();
     game.nextTurn();
+    const nextPlayer = game.currentTurn();
+    addGameLog(`Turn ended: Player ${currentPlayer.name} → Player ${nextPlayer.name}`);
     setHasRolled(false);
-    // Reset dice display for next player
     setDiceState([1, 1]);
   };
 
@@ -379,7 +456,7 @@ export function Board() {
         <div className="news">  
           <div className="trade-logs">
             <div className="property-title">Trades</div>
-            {miningLogs.map((log, index) => (
+            {gameLogs.map((log, index) => (
               <div key={index} className="mining-log">
                 {log}
               </div>
@@ -463,8 +540,11 @@ export function Board() {
         </div>
       </div> 
       <div className="sup-info">
-        <PropertyDetails square={selectedSquare} /> 
-
+        <PropertyDetails 
+          square={selectedSquare} 
+          onBuy={handleBuy} 
+          onSell={handleSell}
+        /> 
         <div className="bank-balance">
           Bank Balance: {game.bank.balance().toString()}
         </div>
