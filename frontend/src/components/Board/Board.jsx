@@ -93,10 +93,10 @@ class Player {
   } 
 
   rollDice() {
-    // const die1 = Math.floor(Math.random() * 6) + 1;
-    // const die2 = Math.floor(Math.random() * 6) + 1;
-    const die1 = 0;
-    const die2 = 1; 
+    const die1 = Math.floor(Math.random() * 6) + 1;
+    const die2 = Math.floor(Math.random() * 6) + 1;
+    // const die1 = 0;
+    // const die2 = 1; 
     this.location = (this.location + die1 + die2) % this.game.length; 
     return [die1, die2]; 
   }
@@ -692,8 +692,8 @@ export function Board() {
   const { game, blockchain } = useMemo(() => {
     console.log('Initializing game and blockchain');
     
-    const difficulty = new Hex("00F0000000000003A30C00000000000000000000000000000000000000000000");  
-    const reward = 0n;
+    const difficulty = new Hex("0000F00000000003A30C00000000000000000000000000000000000000000000");  
+    const reward = 10n;
     const blockchain = new BlockChain(difficulty, reward);
     const game = new Game(blockchain);
 
