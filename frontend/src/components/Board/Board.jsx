@@ -9,21 +9,38 @@ class SquareSpace {
     this.x = x; 
     this.y = y; 
     this.price = price; 
-    this.rent = rent; 
     this.game = game; 
     this.owner = game.bank; 
     this.houses = 0; 
     this.house_price = 60; 
+    this.base_rent = rent;
+    this.house_rent = 80; 
+    this.rent = rent; 
   }
 
   addHouse() {
     this.houses += 1; 
-    this.rent *= 2; 
+    this.rent += this.house_rent;  
   }
 
   removeHouse() {
     this.houses -= 1; 
-    this.rent /= 2; 
+    this.rent -= this.house_rent;  
+  }
+
+  getRent() {
+    return this.rent + this.houses * 60; 
+  }
+
+  district() {
+    return this.game.assets.filter(x => x.color === this.color);
+  }
+
+  ownsDistrict(player) {
+    // Get all properties in this district/color
+    const districtProperties = this.district();
+    // Check if the player owns all properties in the district
+    return districtProperties.every(property => property.owner.name === player.name);
   }
 }
 
@@ -76,8 +93,10 @@ class Player {
   } 
 
   rollDice() {
-    const die1 = Math.floor(Math.random() * 6) + 1;
-    const die2 = Math.floor(Math.random() * 6) + 1;
+    // const die1 = Math.floor(Math.random() * 6) + 1;
+    // const die2 = Math.floor(Math.random() * 6) + 1;
+    const die1 = 0;
+    const die2 = 1; 
     this.location = (this.location + die1 + die2) % this.game.length; 
     return [die1, die2]; 
   }
@@ -150,9 +169,12 @@ function PropertyDetails({ square, onBuy, onSell, onBuyHouse, onSellHouse }) {
 
   const renderButtons = () => {
     let p = square.game.currentTurn();
+    const ownsDistrict = square.ownsDistrict(p);
+    const ownsProperty = square.owner.name === p.name;
+    const hasHouses = square.houses > 0;
     
-    // If player is not on this square
-    if (p.onSquare().name !== square.name) {
+    // If player doesn't own the property and the bank doesn't own it
+    if (!ownsProperty && !square.owner.isbank) {
       return (
         <>
           <div className="button-row">
@@ -167,14 +189,15 @@ function PropertyDetails({ square, onBuy, onSell, onBuyHouse, onSellHouse }) {
       );
     }
 
-    // If player is on square and bank owns the property
+    // If bank owns the property, only allow buying if player is on the square
     if (square.owner.isbank) {
       return (
         <>
           <div className="button-row">
             <button 
-              className="buy-button" 
+              className={`buy-button ${p.onSquare().name !== square.name ? 'disabled' : ''}`}
               onClick={() => onBuy(p, square)}
+              disabled={p.onSquare().name !== square.name}
             >
               Buy Land
             </button>
@@ -203,14 +226,13 @@ function PropertyDetails({ square, onBuy, onSell, onBuyHouse, onSellHouse }) {
       );
     }
 
-    // If player is on square and owns the property
-    if (square.owner.name === p.name) {
-      const hasHouses = square.houses > 0;
+    // If player owns the property
+    if (ownsProperty) {
       return (
         <>
           <div className="button-row">
             <button 
-              className={`buy-button disabled`} 
+              className="buy-button disabled" 
               disabled
             >
               Buy Land
@@ -226,8 +248,10 @@ function PropertyDetails({ square, onBuy, onSell, onBuyHouse, onSellHouse }) {
           </div>
           <div className="button-row">
             <button 
-              className="buy-house-button" 
+              className={`buy-house-button ${!ownsDistrict ? 'disabled' : ''}`} 
               onClick={() => onBuyHouse(p, square)}
+              disabled={!ownsDistrict}
+              title={!ownsDistrict ? "Must own all properties of this color to build houses" : ""}
             >
               Buy House
             </button>
@@ -243,7 +267,7 @@ function PropertyDetails({ square, onBuy, onSell, onBuyHouse, onSellHouse }) {
       );
     }
 
-    // If another player owns the property
+    // Default case (shouldn't reach here, but good to have)
     return (
       <>
         <div className="button-row">
@@ -265,11 +289,11 @@ function PropertyDetails({ square, onBuy, onSell, onBuyHouse, onSellHouse }) {
         <p>Color: <span className={`color-box ${square.color}`}></span></p>
         {square.price > 0 && (
           <>
-            <p>1 House  - ${square.rent}</p>
-            <p>2 Houses - ${2 * square.rent}</p>
-            <p>3 Houses - ${3 * square.rent}</p>
-            <p>4 Houses - ${4 * square.rent}</p>
-            <p>1 Hotel  - ${6 * square.rent}</p>
+            <p>0 Houses - ${square.base_rent}</p>
+            <p>1 House  - ${square.base_rent + square.house_rent}</p>
+            <p>2 House  - ${square.base_rent + 2 * square.house_rent}</p>
+            <p>3 House  - ${square.base_rent + 3 * square.house_rent}</p>
+            <p>4 House  - ${square.base_rent + 4 * square.house_rent}</p>
             <p>Cost Per House: $50</p>
           </> 
         )}
@@ -384,6 +408,13 @@ function buyhouse(buyer, property) {
     console.log("You do not own this property.")
     return false;
   }
+
+  // Add district ownership check
+  if (!property.ownsDistrict(buyer)) {
+    console.log("You must own all properties of this color to build houses.")
+    return false;
+  }
+
   const bank = property.game.bank; 
   const blockchain = property.game.blockchain; 
   let tx = buyer.wallet.send(bank.wallet.master_keypair.public, BigInt(property.house_price));
@@ -433,10 +464,201 @@ function pay(payer, receiver, value) {
   return true; 
 }
 
-function trade(p1, p2, p1assets, p2assets) {
-  return;
+function trade(p1, p2, p1assets, p2assets, p1cash, p2cash) { 
+  /** 
+   * @param {Player} p1 
+   * @param {Player} p2 
+   * @param {SquareSpace[]} p1assets - Properties p1 is giving to p2
+   * @param {SquareSpace[]} p2assets - Properties p2 is giving to p1
+   * @param {BigInt} p1cash - Cash p1 is giving to p2
+   * @param {BigInt} p2cash - Cash p2 is giving to p1
+   */
+
+  // Verify ownership of properties
+  for (let property of p1assets) {
+    if (property.owner.name !== p1.name) {
+      console.log(`${p1.name} doesn't own ${property.name}`);
+      return false;
+    }
+    if (property.houses > 0) {
+      console.log(`Must sell all houses on ${property.name} before trading`);
+      return false;
+    }
+  }
+
+  for (let property of p2assets) {
+    if (property.owner.name !== p2.name) {
+      console.log(`${p2.name} doesn't own ${property.name}`);
+      return false;
+    }
+    if (property.houses > 0) {
+      console.log(`Must sell all houses on ${property.name} before trading`);
+      return false;
+    }
+  }
+
+  // Verify players have enough cash
+  if (p1.balance() < p1cash) {
+    console.log(`${p1.name} doesn't have enough cash`);
+    return false;
+  }
+
+  if (p2.balance() < p2cash) {
+    console.log(`${p2.name} doesn't have enough cash`);
+    return false;
+  }
+
+  // Execute cash transfers
+  if (p1cash > 0n) {
+    let tx1 = p1.wallet.send(p2.wallet.master_keypair.public, p1cash);
+    p1.game.blockchain.add_transaction(tx1);
+  }
+
+  if (p2cash > 0n) {
+    let tx2 = p2.wallet.send(p1.wallet.master_keypair.public, p2cash);
+    p2.game.blockchain.add_transaction(tx2);
+  }
+
+  // Transfer properties from p1 to p2
+  for (let property of p1assets) {
+    p1.removeAsset(property);
+    p2.addAsset(property);
+  }
+
+  // Transfer properties from p2 to p1
+  for (let property of p2assets) {
+    p2.removeAsset(property);
+    p1.addAsset(property);
+  }
+
+  console.log(`Trade completed between ${p1.name} and ${p2.name}`);
+  return true;
 }
 
+function TradeModal({ isOpen, onClose, game, tradingPlayers, onTrade }) {
+  const [p1Assets, setP1Assets] = useState([]);
+  const [p2Assets, setP2Assets] = useState([]);
+  const [p1Cash, setP1Cash] = useState(0);
+  const [p2Cash, setP2Cash] = useState(0);
+
+  const { p1, p2 } = tradingPlayers;
+
+  const handleTrade = () => {
+    const success = trade(
+      p1, 
+      p2, 
+      p1Assets, 
+      p2Assets, 
+      BigInt(p1Cash), 
+      BigInt(p2Cash)
+    );
+    if (success) {
+      onClose();
+      onTrade(p1Assets, p2Assets, p1Cash, p2Cash);  // Pass the traded items
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="trade-modal">
+      <div className="trade-modal-content">
+        <h2>Trade Between Player {p1.name} and Player {p2.name}</h2>
+        
+        <div className="trade-section">
+          <div className="player-section">
+            <h3>Player {p1.name}'s Offers:</h3>
+            <div className="property-selection">
+              {p1.assets.map(property => (
+                <div key={property.name} className="property-option">
+                  <input
+                    type="checkbox"
+                    checked={p1Assets.includes(property)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setP1Assets([...p1Assets, property]);
+                      } else {
+                        setP1Assets(p1Assets.filter(p => p !== property));
+                      }
+                    }}
+                    disabled={property.houses > 0}
+                    title={property.houses > 0 ? "Must sell houses before trading" : ""}
+                  />
+                  <label>
+                    {property.name}
+                    {property.houses > 0 && ` (${property.houses} houses)`}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="cash-input">
+              <label>Cash Offer: </label>
+              <input
+                type="number"
+                value={p1Cash}
+                onChange={(e) => setP1Cash(Math.max(0, parseInt(e.target.value) || 0))}
+                min="0"
+              />
+              <div className="balance-display">Balance: {p1.balance().toString()}</div>
+            </div>
+          </div>
+
+          <div className="player-section">
+            <h3>Player {p2.name}'s Offers:</h3>
+            <div className="property-selection">
+              {p2.assets.map(property => (
+                <div key={property.name} className="property-option">
+                  <input
+                    type="checkbox"
+                    checked={p2Assets.includes(property)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setP2Assets([...p2Assets, property]);
+                      } else {
+                        setP2Assets(p2Assets.filter(p => p !== property));
+                      }
+                    }}
+                    disabled={property.houses > 0}
+                    title={property.houses > 0 ? "Must sell houses before trading" : ""}
+                  />
+                  <label>
+                    {property.name}
+                    {property.houses > 0 && ` (${property.houses} houses)`}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="cash-input">
+              <label>Cash Offer: </label>
+              <input
+                type="number"
+                value={p2Cash}
+                onChange={(e) => setP2Cash(Math.max(0, parseInt(e.target.value) || 0))}
+                min="0"
+              />
+              <div className="balance-display">Balance: {p2.balance().toString()}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="trade-actions">
+          <button 
+            onClick={handleTrade} 
+            className="confirm-trade"
+            disabled={
+              (p1Cash > p1.balance()) || 
+              (p2Cash > p2.balance()) ||
+              (p1Assets.length === 0 && p2Assets.length === 0 && p1Cash === 0 && p2Cash === 0)
+            }
+          >
+            Confirm Trade
+          </button>
+          <button onClick={onClose} className="cancel-trade">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function Board() {
   const [selectedSquare, setSelectedSquare] = useState(null);
@@ -447,6 +669,15 @@ export function Board() {
 
   const [miningLogs, setMiningLogs] = useState([]);
   const [gameLogs, setGameLogs] = useState([]);
+
+  const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
+  const [tradingPlayers, setTradingPlayers] = useState(null);
+
+  const handleTradeClick = (p1, p2) => {
+    setTradingPlayers({ p1, p2 });
+    setIsTradeModalOpen(true);
+  };
+
 
   const addMiningLog = (log) => {
     setMiningLogs(prevLogs => [...prevLogs.slice(-20), log]); 
@@ -530,8 +761,9 @@ export function Board() {
     const p2 = new Player(2, game);
     game.addPlayer(p2);
 
-    blockchain.mint(1000n, p1.wallet.master_keypair);
-    blockchain.mint(1000n, p2.wallet.master_keypair);
+    blockchain.mint(10000n, bank.wallet.master_keypair);
+    blockchain.mint(2000n, p1.wallet.master_keypair);
+    blockchain.mint(2000n, p2.wallet.master_keypair);
     // const p3 = new Player(3, game);
     // game.addPlayer(p3);
     // const p4 = new Player(4, game);
@@ -587,7 +819,7 @@ export function Board() {
 
   const handlePay = (payer, receiver, value) => {
     if (pay(payer, receiver, value)) {
-      addGameLog(`$Player {payer.name} paid $${value} to Player ${receiver.name}`);
+      addGameLog(`$Player ${payer.name} paid $${value} to Player ${receiver.name}`);
     }
   };
 
@@ -767,10 +999,76 @@ export function Board() {
           onBuyHouse={handleBuyHouse} 
           onSellHouse={handleSellHouse}
         /> 
-        <div className="bank-balance">
-          Bank Balance: {game.bank.balance().toString()}
+        <div className="bottom-actions">
+          <div className="bank-balance">
+            Bank Balance: {game.bank.balance().toString()}
+          </div>
+          <div className="trade-buttons">
+            {game.players.map((player, idx) => (
+              player !== game.currentTurn() && (
+                <button 
+                  key={idx}
+                  className="trade-button"
+                  onClick={() => {
+                    setTradingPlayers({
+                      p1: game.currentTurn(),
+                      p2: player
+                    });
+                    setIsTradeModalOpen(true);
+                  }}
+                >
+                  Trade w/ P{player.name}
+                </button>
+              )
+            ))}
+          </div>
         </div>
       </div>
+
+      {isTradeModalOpen && tradingPlayers && (
+        <TradeModal
+          isOpen={isTradeModalOpen}
+          onClose={() => {
+            setIsTradeModalOpen(false);
+            setTradingPlayers(null);
+          }}
+          game={game}
+          tradingPlayers={tradingPlayers}
+          onTrade={(p1Assets, p2Assets, p1Cash, p2Cash) => {  // Add these parameters
+            // Log the main trade
+            addGameLog('-----------------------------------'); 
+            addGameLog(`TRADE completed between Player ${tradingPlayers.p1.name} and Player ${tradingPlayers.p2.name}`); 
+            
+            // Log Player 1's trades
+            if (p1Assets.length > 0 || p1Cash > 0) {
+              const p1Gave = [];
+              if (p1Assets.length > 0) {
+                p1Gave.push(`properties: ${p1Assets.map(p => p.name).join(', ')}`);
+              }
+              if (p1Cash > 0) {
+                p1Gave.push(`$${p1Cash}`);
+              }
+              addGameLog(`Player ${tradingPlayers.p1.name} gave ${p1Gave.join(' and ')}`);
+            }
+
+            // Log Player 2's trades
+            if (p2Assets.length > 0 || p2Cash > 0) {
+              const p2Gave = [];
+              if (p2Assets.length > 0) {
+                p2Gave.push(`properties: ${p2Assets.map(p => p.name).join(', ')}`);
+              }
+              if (p2Cash > 0) {
+                p2Gave.push(`$${p2Cash}`);
+              }
+              addGameLog(`Player ${tradingPlayers.p2.name} gave ${p2Gave.join(' and ')}`);
+            }
+            addGameLog('-----------------------------------'); 
+
+            setIsTradeModalOpen(false);
+            setTradingPlayers(null);
+          }}
+        />
+      )}
     </div>
   );
 }

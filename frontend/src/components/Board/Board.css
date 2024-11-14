@@ -383,3 +383,133 @@
 .disabled:hover {
   background-color: #9ca3af;
 }
+
+.trade-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.trade-modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 800px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.trade-section {
+  display: flex;
+  gap: 20px;
+}
+
+.player-section {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.property-selection {
+  margin: 10px 0;
+}
+
+.property-option {
+  margin: 5px 0;
+}
+
+.cash-input {
+  margin-top: 10px;
+}
+
+.trade-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.trade-actions button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.bottom-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.trade-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.trade-button {
+  padding: 8px 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.trade-button:hover {
+  background-color: #45a049;
+}
+
+.trade-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.trade-modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 800px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.property-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+}
+
+.balance-display {
+  margin-top: 5px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.property-option input[type="checkbox"]:disabled + label {
+  color: #999;
+  font-style: italic;
+}
