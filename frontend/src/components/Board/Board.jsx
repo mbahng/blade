@@ -11,7 +11,19 @@ class SquareSpace {
     this.price = price; 
     this.rent = rent; 
     this.game = game; 
-    this.owner = game.bank;
+    this.owner = game.bank; 
+    this.houses = 0; 
+    this.house_price = 60; 
+  }
+
+  addHouse() {
+    this.houses += 1; 
+    this.rent *= 2; 
+  }
+
+  removeHouse() {
+    this.houses -= 1; 
+    this.rent /= 2; 
   }
 }
 
@@ -47,26 +59,6 @@ class Game {
 
     return res; 
   }
-}
-
-function DiceComponent({ game }) {
-  const [dice, setDice] = useState([1, 1]);
-
-  const rollDice = () => {
-    const newDice = game.currentTurn().rollDice();
-    setDice(newDice);
-  };
-
-  return (
-    <div className="dice-container">
-      <div className="dice-result">
-        Dice Roll: {dice[0]} and {dice[1]} (Total: {dice[0] + dice[1]})
-      </div>
-      <button onClick={rollDice} className="roll-button">
-        Roll Dice
-      </button>
-    </div>
-  );
 }
 
 class Player {
@@ -105,14 +97,166 @@ class Player {
     this.assets.push(property);
     property.owner = this; 
   }
+
+  removeAsset(property) {
+    /** 
+     * @param {SquareSpace} property 
+     */
+    this.assets = this.assets.filter(x => x != property);
+    property.owner = this.game.bank; 
+  }
+
+  buyHouse(property) {
+    if (!this.assets.includes(property)) {
+      console.log("Not your property.");
+      return false; 
+    }
+    const bank = property.game.bank; 
+    const blockchain = property.game.blockchain; 
+    let tx = this.wallet.send(bank.wallet.master_keypair.public, BigInt(property.house_price));
+    blockchain.add_transaction(tx); 
+    property.addHouse();
+
+    return true; 
+  }
 }
 
-function PropertyDetails({ square, onBuy, onSell }) {
+function DiceComponent({ game }) {
+  const [dice, setDice] = useState([1, 1]);
+
+  const rollDice = () => {
+    const newDice = game.currentTurn().rollDice();
+    setDice(newDice);
+  };
+
+  return (
+    <div className="dice-container">
+      <div className="dice-result">
+        Dice Roll: {dice[0]} and {dice[1]} (Total: {dice[0] + dice[1]})
+      </div>
+      <button onClick={rollDice} className="roll-button">
+        Roll Dice
+      </button>
+    </div>
+  );
+}
+
+function PropertyDetails({ square, onBuy, onSell, onBuyHouse, onSellHouse }) {
   if (!square) return (
     <div className="property-details">
       <p>Click on a property to see details</p>
     </div>
   );
+
+  const renderButtons = () => {
+    let p = square.game.currentTurn();
+    
+    // If player is not on this square
+    if (p.onSquare().name !== square.name) {
+      return (
+        <>
+          <div className="button-row">
+            <button className="buy-button disabled" disabled>Buy Land</button>
+            <button className="sell-button disabled" disabled>Sell Land</button>
+          </div>
+          <div className="button-row">
+            <button className="buy-house-button disabled" disabled>Buy House</button>
+            <button className="sell-house-button disabled" disabled>Sell House</button>
+          </div>
+        </>
+      );
+    }
+
+    // If player is on square and bank owns the property
+    if (square.owner.isbank) {
+      return (
+        <>
+          <div className="button-row">
+            <button 
+              className="buy-button" 
+              onClick={() => onBuy(p, square)}
+            >
+              Buy Land
+            </button>
+            <button 
+              className="sell-button disabled"
+              disabled
+            >
+              Sell Land
+            </button>
+          </div>
+          <div className="button-row">
+            <button 
+              className="buy-house-button disabled" 
+              disabled
+            >
+              Buy House
+            </button>
+            <button 
+              className="sell-house-button disabled"
+              disabled
+            >
+              Sell House
+            </button>
+          </div>
+        </>
+      );
+    }
+
+    // If player is on square and owns the property
+    if (square.owner.name === p.name) {
+      const hasHouses = square.houses > 0;
+      return (
+        <>
+          <div className="button-row">
+            <button 
+              className={`buy-button disabled`} 
+              disabled
+            >
+              Buy Land
+            </button>
+            <button 
+              className={`sell-button ${hasHouses ? 'disabled' : ''}`}
+              onClick={() => onSell(p, square)}
+              disabled={hasHouses}
+              title={hasHouses ? "Must sell all houses before selling property" : ""}
+            >
+              Sell Land
+            </button>
+          </div>
+          <div className="button-row">
+            <button 
+              className="buy-house-button" 
+              onClick={() => onBuyHouse(p, square)}
+            >
+              Buy House
+            </button>
+            <button 
+              className={`sell-house-button ${square.houses < 1 ? 'disabled' : ''}`}
+              onClick={() => onSellHouse(p, square)}
+              disabled={square.houses < 1}
+            >
+              Sell House
+            </button>
+          </div>
+        </>
+      );
+    }
+
+    // If another player owns the property
+    return (
+      <>
+        <div className="button-row">
+          <button className="buy-button disabled" disabled>Buy Land</button>
+          <button className="sell-button disabled" disabled>Sell Land</button>
+        </div>
+        <div className="button-row">
+          <button className="buy-house-button disabled" disabled>Buy House</button>
+          <button className="sell-house-button disabled" disabled>Sell House</button>
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="property-details">
@@ -129,8 +273,7 @@ function PropertyDetails({ square, onBuy, onSell }) {
             <p>Cost Per House: $50</p>
           </> 
         )}
-        <button onClick={() => onBuy(square.game.currentTurn(), square, BigInt(square.price))}>Buy</button>
-        <button onClick={() => onSell(square.game.currentTurn(), square)}>Sell</button>
+        {renderButtons()}
       </div>
     </div>
   );
@@ -147,14 +290,22 @@ function Square({ square, game, onSelect }) {
     return '';
   };
   
+  const renderHouses = () => {
+    if (square.houses > 0) {
+      return `H${square.houses}`;
+    }
+    return '';
+  };
+  
   return (
     <div className={`square ${square.color}`} onClick={() => onSelect(square)}>
       <div className={`square-text`}>
         {square.name}
       </div>
-
       <div className="houses-container">
-        <div className='house-token'>h</div>
+        <div className='house-token'>
+          {renderHouses()}
+        </div>
       </div>
       
       <div className="players-container">
@@ -167,9 +318,7 @@ function Square({ square, game, onSelect }) {
           </div>
         ))}
       </div>
-
       <div className={`square-text ${getOwnerTint()}`}></div>
-
     </div>
   );
 }
@@ -214,7 +363,60 @@ function sell(seller, property) {
   const blockchain = property.game.blockchain; 
   let tx = bank.wallet.send(seller.wallet.master_keypair.public, BigInt(property.price));
   blockchain.add_transaction(tx);
+
+  // Remove property from seller's assets
+  seller.removeAsset(property); 
+
+  // Reset houses if any
+  property.houses = 0;
+  property.rent = property.price * 0.1; // Reset rent to original value
+
   console.log(`${seller.name} sold ${property.name}`);
+  return true; 
+}
+
+function buyhouse(buyer, property) {
+  /** 
+   * @param {Player} buyer 
+   * @param {SquareSpace} property 
+   */ 
+  if (!(property.owner.name === buyer.name)) {
+    console.log("You do not own this property.")
+    return false;
+  }
+  const bank = property.game.bank; 
+  const blockchain = property.game.blockchain; 
+  let tx = buyer.wallet.send(bank.wallet.master_keypair.public, BigInt(property.house_price));
+  blockchain.add_transaction(tx); 
+  property.addHouse(); 
+
+  console.log(`${buyer.name} bought 1 house on ${property.name}`);
+  return true; 
+}
+
+function sellhouse(seller, property) {
+  /** 
+   * @param {Player} seller 
+   * @param {SquareSpace} property 
+   */ 
+  if (!(property.owner.name === seller.name)) {
+    console.log("You do not own this property.")
+    return false;
+  }
+
+  if (property.houses === 0) {
+    console.log("You do not have any houses to sell.")
+    return false;
+  }
+
+  const bank = property.game.bank; 
+  const blockchain = property.game.blockchain; 
+  let tx = bank.wallet.send(seller.wallet.master_keypair.public, BigInt(property.house_price));
+  blockchain.add_transaction(tx);
+
+  property.removeHouse(); 
+
+  console.log(`${seller.name} sold 1 house on ${property.name}`);
   return true; 
 }
 
@@ -259,8 +461,8 @@ export function Board() {
   const { game, blockchain } = useMemo(() => {
     console.log('Initializing game and blockchain');
     
-    const difficulty = new Hex("0000F00000000003A30C00000000000000000000000000000000000000000000");  
-    const reward = 100n;
+    const difficulty = new Hex("00F0000000000003A30C00000000000000000000000000000000000000000000");  
+    const reward = 0n;
     const blockchain = new BlockChain(difficulty, reward);
     const game = new Game(blockchain);
 
@@ -315,7 +517,10 @@ export function Board() {
       new SquareSpace("Devines", "mint", 40, 600, 10, 0, game),
       new SquareSpace("Cameron", "orange", 40, 680, 280, 28, game),
       new SquareSpace("Chapel", "orange", 40, 760, 260, 26, game)
-    ].map((square, index) => ({ ...square, index }));
+    ].map((square, index) => {
+      square.index = index;
+      return square;
+    }); 
     
     game.assets = assets;
     game.length = assets.length;
@@ -324,10 +529,13 @@ export function Board() {
     game.addPlayer(p1);
     const p2 = new Player(2, game);
     game.addPlayer(p2);
-    const p3 = new Player(3, game);
-    game.addPlayer(p3);
-    const p4 = new Player(4, game);
-    game.addPlayer(p4);
+
+    blockchain.mint(1000n, p1.wallet.master_keypair);
+    blockchain.mint(1000n, p2.wallet.master_keypair);
+    // const p3 = new Player(3, game);
+    // game.addPlayer(p3);
+    // const p4 = new Player(4, game);
+    // game.addPlayer(p4);
 
     return { game, blockchain };
   }, []);
@@ -411,6 +619,18 @@ export function Board() {
   const handleSell = (seller, property) => {
     if (sell(seller, property)) {
       addGameLog(`Player ${seller.name} sold ${property.name} for $${property.price}`);
+    }
+  };
+
+  const handleBuyHouse = (buyer, property) => {
+    if (buyhouse(buyer, property)) {
+      addGameLog(`Player ${buyer.name} bought 1 house on ${property.name} for $${property.house_price}`);
+    }
+  };
+
+  const handleSellHouse = (seller, property) => {
+    if (sellhouse(seller, property)) {
+      addGameLog(`Player ${seller.name} sold 1 house on ${property.name} for $${property.house_price}`);
     }
   };
 
@@ -544,6 +764,8 @@ export function Board() {
           square={selectedSquare} 
           onBuy={handleBuy} 
           onSell={handleSell}
+          onBuyHouse={handleBuyHouse} 
+          onSellHouse={handleSellHouse}
         /> 
         <div className="bank-balance">
           Bank Balance: {game.bank.balance().toString()}

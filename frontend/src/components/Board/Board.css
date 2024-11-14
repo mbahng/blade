@@ -200,16 +200,15 @@
 }
 
 .house-token {
-  position: relative;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: black;
+  font-size: 12px;
   font-weight: bold;
-  font-size: 16px;
+  color: #333;
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 2px 4px;
+  border-radius: 3px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .houses-container {
@@ -327,4 +326,60 @@
   height: 50%; 
   border: solid 1px red; 
   bottom: 0px;
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+}
+
+.buy-button, .sell-button, .buy-house-button, .sell-house-button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  cursor: pointer;
+  border: none;
+  color: white;
+}
+
+.buy-button {
+  background-color: #22c55e;
+}
+
+.buy-button:hover:not(.disabled) {
+  background-color: #16a34a;
+}
+
+.sell-button {
+  background-color: #ef4444;
+}
+
+.sell-button:hover {
+  background-color: #dc2626;
+}
+
+.buy-house-button {
+  background-color: #3b82f6;
+}
+
+.buy-house-button:hover {
+  background-color: #2563eb;
+}
+
+.sell-house-button {
+  background-color: #f97316;
+}
+
+.sell-house-button:hover:not(.disabled) {
+  background-color: #ea580c;
+}
+
+.disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.disabled:hover {
+  background-color: #9ca3af;
 }
