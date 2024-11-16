@@ -1,8 +1,8 @@
-import { Hex } from "../utils/bytestream.js";
-import { Transaction, TransactionOutput } from "../transactions/transactions.js";
-import { sha256 } from "../utils/hash.js";
-import { EccKeyPair } from "../keys/ecc.js"; 
-import { Miner } from "../miners/miners.js";
+import { Hex } from "../crypt/bytestream.js";
+import { BtcTransaction, BtcTransactionOutput } from "../executables/transactions.js";
+import { sha256 } from "../crypt/hash.js";
+import { EccKeyPair } from "../crypt/ecc.js"; 
+import { Miner } from "./miners.js";
 
 export class MerkleNode {
   constructor(value, left = null, right = null) {
@@ -23,7 +23,7 @@ export class Block {
     /**
     * @constructs  
     * @param {Hex | null} prev_block_hash  
-    * @param {Transaction[]} transactions 
+    * @param {BtcTransaction[]} transactions 
     * @param {number} height 
     * @param {BigInt} nonce 
     * @param {Hex} difficulty
@@ -137,7 +137,7 @@ export class BlockChain {
   
   add_transaction(tx) {
     /**
-    * @param {Transaction} tx 
+    * @param {BtcTransaction} tx 
     */ 
     
     // Now update the spent variables in txos
@@ -169,8 +169,8 @@ export class BlockChain {
     * @param {Boolean} genesis - determines whether we put tx in genesis
     * block from the beginning or in pending transactions to be added later
     */
-    const new_utxo = new TransactionOutput(keypair.public, value);  
-    let tx = new Transaction([], [new_utxo]); 
+    const new_utxo = new BtcTransactionOutput(keypair.public, value);  
+    let tx = new BtcTransaction([], [new_utxo]); 
     if (genesis) {
       // force transaction to genesis block
       this.chain[0].txs.push(tx);  
@@ -223,8 +223,8 @@ export class BlockChain {
     this.pending_transactions = this.pending_transactions.slice(i); 
 
     // reward the owner of the miner with coins sent in THIS block
-    const reward_txo = new TransactionOutput(miner.owner_pubkey, this.reward); 
-    let reward_tx = new Transaction([], [reward_txo]); 
+    const reward_txo = new BtcTransactionOutput(miner.owner_pubkey, this.reward); 
+    let reward_tx = new BtcTransaction([], [reward_txo]); 
     block.txs.push(reward_tx); 
     // this is now in the block, but it should be updated in the utxo list in wallet 
     miner.owner_pubkey.txos.push(reward_txo); 

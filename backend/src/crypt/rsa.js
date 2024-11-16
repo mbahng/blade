@@ -1,6 +1,6 @@
-import { Stream, Hex, dec_to_hex } from "../utils/bytestream.js";
-import { generatePrime } from "../utils/primes.js";
-import { expmod } from "../utils/hash.js"; 
+import { Stream, Hex, dec_to_hex } from "./bytestream.js";
+import { generatePrime } from "./primes.js";
+import { expmod } from "./hash.js"; 
 
 class PublicRsaKey {
   // Public key class. Should not be instantiated directly. 

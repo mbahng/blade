@@ -8,7 +8,7 @@ I've recently got into Monopoly, and so I implemented an application of it by co
 
 Here is a quick demo of the backend. 
 ```
-  import { BlockChain, Wallet, Miner, Hex } from "./index.js";
+  import { BlockChain, BtcWallet, Miner, Hex } from "./index.js";
 
   // initialize difficulty and reward for mining a block 
   const difficulty = new Hex("0000500000000003A30C00000000000000000000000000000000000000000000");  
@@ -18,8 +18,8 @@ Here is a quick demo of the backend.
   const blockchain = new BlockChain(difficulty, reward);
 
   // create some wallets with their respective miners. 
-  const M = Wallet.random();
-  const S = Wallet.random();
+  const M = BtcWallet.random();
+  const S = BtcWallet.random();
   const M_miner = new Miner(M.master_keypair.public, blockchain); 
   const S_miner = new Miner(S.master_keypair.public, blockchain); 
   blockchain.add_miner(M_miner);

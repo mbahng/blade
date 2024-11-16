@@ -3,7 +3,7 @@ import { BlockChain, Block } from "../src/block/block.js";
 import { secp256k1 } from "../src/keys/ecc.js";
 import { Hex } from "../src/utils/bytestream.js";
 import { Transaction } from "../src/transactions/transactions.js";
-import { Wallet } from "../src/keys/wallet.js";
+import { BtcWallet } from "../src/keys/wallet.js";
 
 describe("Miner", () => {
   let miner;
@@ -103,8 +103,8 @@ describe("Miner", () => {
       const blockchain = new BlockChain(difficulty, reward);
       
       // Create wallets
-      const M = Wallet.random();
-      const S = Wallet.random();
+      const M = BtcWallet.random();
+      const S = BtcWallet.random();
       
       // Set up miner
       const M_miner = new Miner(M.master_keypair.public, blockchain);
@@ -143,8 +143,8 @@ describe("Miner", () => {
       const blockchain = new BlockChain(difficulty, reward);
       
       // Create wallets
-      const M = Wallet.random();
-      const S = Wallet.random();
+      const M = BtcWallet.random();
+      const S = BtcWallet.random();
       
       // Set up miner
       const M_miner = new Miner(M.master_keypair.public, blockchain); 
@@ -185,8 +185,8 @@ describe("Miner", () => {
       const reward = 10n;
       const blockchain = new BlockChain(difficulty, reward);
       
-      const M = Wallet.random();
-      const S = Wallet.random();
+      const M = BtcWallet.random();
+      const S = BtcWallet.random();
       const M_miner = new Miner(M.master_keypair.public, blockchain);
       blockchain.add_miner(M_miner);
       

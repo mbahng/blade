@@ -1,6 +1,6 @@
-import { PublicEccKey } from "../keys/ecc.js"; 
-import { Block, BlockChain } from "../block/block.js";
-import { sha256 } from "../utils/hash.js";
+import { PublicEccKey } from "../crypt/ecc.js"; 
+import { sha256 } from "../crypt/hash.js";
+import { Block, BlockChain } from "./block.js";
 
 export class Miner {
   constructor(owner_pubkey, blockchain, logCallback = () => 1) {

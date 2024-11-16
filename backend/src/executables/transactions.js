@@ -1,13 +1,14 @@
-import { PublicEccKey } from "../keys/ecc.js";
-import { sha256 } from "../utils/hash.js";
+import { PublicEccKey } from "../crypt/ecc.js";
+import { sha256 } from "../crypt/hash.js";
 
-export class TransactionInput {
+export class BtcTransactionInput {
   // containers that track the money one spends. 
+  // Used for Bitcoin protocol
   constructor(address, value, prev_txo) { 
     /**
     * @param {PublicEccKey} address 
     * @param {BigInt} value 
-    * @param {TransactionOutput} prev_txo
+    * @param {BtcTransactionOutput} prev_txo
     */
     this.address = address;   // address of spender 
     this.value = value; // amount in satoshis
@@ -16,8 +17,10 @@ export class TransactionInput {
   }
 }
 
-export class TransactionOutput { 
+export class BtcTransactionOutput { 
+  // Used for Bitcoin protocol
   // containers that track the money one gains. 
+  // Used for Bitcoin protocol
   constructor(address, value) {
     /**
     * @param {PublicEccKey} address 
@@ -34,16 +37,16 @@ export class TransactionOutput {
     if (this.tx === null) {
       throw Error("This tx is null. ")
     }
-    let txi = new TransactionInput(this.address, this.value, this);
+    let txi = new BtcTransactionInput(this.address, this.value, this);
     return txi; 
   }
 }
 
-export class Transaction {
+export class BtcTransaction {
   constructor(inputs, outputs) {
     /**
-    * @param {TransactionInput[]} inputs 
-    * @param {TransactionOutput[]} outputs
+    * @param {BtcTransactionInput[]} inputs 
+    * @param {BtcTransactionOutput[]} outputs
     */
     for (let input_tx of inputs) {
       input_tx.tx = this; 
@@ -65,5 +68,17 @@ export class Transaction {
     for (let output_tx of this.outputs) {data += output_tx.value.toString(); } 
     return sha256(data);
   }
+}
+
+export class EthTransaction {
+
+}
+
+export class EthTransferTransaction extends EthTransaction {
+
+}
+
+export class EthContractTransaction extends EthTransaction {
+
 }
 

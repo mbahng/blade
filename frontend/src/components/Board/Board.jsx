@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import './Board.css';
-import { BlockChain, Wallet, Miner, Hex } from "../../../../backend/blade.js";
+import { BlockChain, BtcWallet, Miner, Hex } from "../../../../backend/blade.js";
 
 class SquareSpace {
   constructor(name, color, x, y, price, rent, game) {
@@ -87,7 +87,7 @@ class Player {
     this.name = name; 
     this.location = 0; // index of location on map
     this.assets = []; 
-    this.wallet = Wallet.random(); 
+    this.wallet = BtcWallet.random(); 
     this.game = game; 
     this.isbank = isbank;
   } 
@@ -760,14 +760,14 @@ export function Board() {
     game.addPlayer(p1);
     const p2 = new Player(2, game);
     game.addPlayer(p2);
+    const p3 = new Player(3, game);
+    game.addPlayer(p3);
+    const p4 = new Player(4, game);
+    game.addPlayer(p4);
 
     blockchain.mint(10000n, bank.wallet.master_keypair);
     blockchain.mint(2000n, p1.wallet.master_keypair);
     blockchain.mint(2000n, p2.wallet.master_keypair);
-    // const p3 = new Player(3, game);
-    // game.addPlayer(p3);
-    // const p4 = new Player(4, game);
-    // game.addPlayer(p4);
 
     return { game, blockchain };
   }, []);
@@ -795,10 +795,13 @@ export function Board() {
         minerRef.current = m1;
         const m2 = new Miner(game.players[1].wallet.master_keypair.public, blockchain, addMiningLog);
         blockchain.add_miner(m2);
+        const m3 = new Miner(game.players[2].wallet.master_keypair.public, blockchain, addMiningLog);
+        blockchain.add_miner(m3);
         
         if (isMounted) {
           m1.start();
           m2.start();
+          m3.start();
         }
       }
     };

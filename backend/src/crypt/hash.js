@@ -94,3 +94,40 @@ export function hmac_sha512(stream, c) {
     throw Error("Not a valid input type.");
   }
 }
+
+function keccak256_bin(stream) {
+  return new Hex(CryptoJS.SHA3(stream.stream).toString()); 
+}
+
+function keccak256_hex(stream) {
+  return new Hex(CryptoJS.SHA3(stream.stream).toString()); 
+}
+
+function keccak256_stream(stream) {
+  return new Hex(CryptoJS.SHA3(stream.stream).toString()); 
+}
+
+function keccak256_string(stream) {
+  return new Hex(CryptoJS.SHA3(stream).toString()); 
+}
+
+export function keccak256(stream) {
+  /**
+  * @param {Bin|Hex|Stream|string} stream
+  */
+  if (stream instanceof Bin) {
+    return keccak256_bin(stream);
+  }
+  else if (stream instanceof Hex) {
+    return keccak256_hex(stream); 
+  }
+  else if (stream instanceof Stream) {
+    return keccak256_stream(stream.stream); 
+  }
+  else if (typeof stream == "string") {
+    return keccak256_string(stream); 
+  }
+  else {
+    throw Error("Not a valid input type.");
+  }
+}

@@ -1,4 +1,4 @@
-import { BlockChain, Wallet, Miner, Hex } from "./blade.js";
+import { BlockChain, BtcWallet, Miner, Hex } from "./blade.js";
 
 // initialize difficulty and reward for mining a block 
 const difficulty = new Hex("0000500000000003A30C00000000000000000000000000000000000000000000");  
@@ -8,8 +8,8 @@ const reward = 10n;
 const blockchain = new BlockChain(difficulty, reward);
 
 // create some wallets with their respective miners. 
-const M = Wallet.random();
-const S = Wallet.random();
+const M = BtcWallet.random();
+const S = BtcWallet.random();
 const M_miner = new Miner(M.master_keypair.public, blockchain); 
 const S_miner = new Miner(S.master_keypair.public, blockchain); 
 blockchain.add_miner(M_miner);

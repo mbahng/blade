@@ -1,4 +1,4 @@
-import { Block, BlockChain } from "../src/block/block.js";
+import { Block, BlockChain } from "../src/blockchain/block.js";
 import { Hex } from "../src/utils/bytestream.js";
 import { Transaction, TransactionOutput } from "../src/transactions/transactions.js";
 import { Miner } from "../src/miners/miners.js";

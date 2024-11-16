@@ -1,14 +1,14 @@
-import { BlockChain } from "./src/block/block.js";
-import { Wallet } from "./src/keys/wallet.js";
-import { Miner } from "./src/miners/miners.js"
-import { Hex } from "./src/utils/bytestream.js";
+import { Hex } from "./src/crypt/bytestream.js";
+import { BlockChain } from "./src/blockchain/block.js";
+import { Miner } from "./src/blockchain/miners.js";
+import { BtcWallet } from "./src/wallet/wallet.js";
 
 const difficulty = new Hex("0001000000000003A30C00000000000000000000000000000000000000000000");  
 const reward = 10n;
 
 const blockchain = new BlockChain(difficulty, reward);
-const M = Wallet.random();
-const S = Wallet.random();
+const M = BtcWallet.random();
+const S = BtcWallet.random();
 const M_miner = new Miner(M.master_keypair.public, blockchain); 
 const S_miner = new Miner(S.master_keypair.public, blockchain); 
 blockchain.add_miner(M_miner);

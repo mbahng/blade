@@ -1,18 +1,18 @@
-import { EccKeyPair, secp256k1, PublicEccKey } from "./ecc.js";
-import { TransactionOutput, Transaction } from "../transactions/transactions.js";
+import { EccKeyPair, secp256k1, PublicEccKey } from "../crypt/ecc.js";
+import { BtcTransactionOutput, BtcTransaction } from "../executables/transactions.js";
 
-export class Wallet {
+export class BtcWallet {
   constructor(master_keypair) {
     /**
     * A hierarchical wallet with a master ECC keypair 
-    * @constructor 
+    * @constructs 
     * @param {EccKeyPair} master_keypair
     */ 
     this.master_keypair = master_keypair; 
   }
 
   static random() {
-    return new Wallet(secp256k1(true)); 
+    return new BtcWallet(secp256k1(true)); 
   }
 
   txos() {
@@ -71,18 +71,24 @@ export class Wallet {
     
     // Create the txos 
     let txo_list = []; 
-    let receiver_txo = new TransactionOutput(receiver_key, value); 
+    let receiver_txo = new BtcTransactionOutput(receiver_key, value); 
     txo_list.push(receiver_txo);
     
     if (accum - value > 0n) {
       // if there's leftover, then make new utxo for sender 
-      let spender_txo = new TransactionOutput(this.master_keypair.public, accum - value); 
+      let spender_txo = new BtcTransactionOutput(this.master_keypair.public, accum - value); 
       txo_list.push(spender_txo);
     }
 
-    let tx = new Transaction(txi_list, txo_list); 
+    let tx = new BtcTransaction(txi_list, txo_list); 
     return tx; 
   }
 }
 
-
+export class EthWallet {
+  constructor() {
+    /**
+    * should contain a set of EthereumAccounts
+    */
+  }
+}

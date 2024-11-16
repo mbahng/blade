@@ -1,6 +1,6 @@
-import { Hex } from "../utils/bytestream.js";
-import { randomInt } from "../utils/primes.js";
-import { sha256, hmac_sha512 } from "../utils/hash.js";
+import { Hex } from "./bytestream.js";
+import { randomInt } from "./primes.js";
+import { sha256, hmac_sha512 } from "./hash.js";
 
 export function inverse(a, p) { 
   /**
