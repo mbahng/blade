@@ -40,7 +40,10 @@ export class ExtOwnedAccount extends EthereumAccount {
     return new ExtOwnedAccount(secp256k1(true)); 
   }
 
-  createTransaction() {
+  createTransaction() { 
+    /**
+    * @returns {EthTransaction}
+    */
 
   }
 }

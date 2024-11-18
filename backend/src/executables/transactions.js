@@ -71,6 +71,19 @@ export class BtcTransaction {
 }
 
 export class EthTransaction {
+  constructor(sender, receiver, value, nonce) {
+    /**
+    * @constructs 
+    * @param {EthWallet} sender
+    * @param {EthWallet} receiver 
+    * @param {BigInt} value 
+    * @param {number} nonce
+    */
+    this.sender = sender; 
+    this.receiver = receiver; 
+    this.value = value; 
+    this.nonce = nonce; 
+  }
 
 }
 

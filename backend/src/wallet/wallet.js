@@ -86,9 +86,16 @@ export class BtcWallet {
 }
 
 export class EthWallet {
-  constructor() {
+  constructor(master_keypair) {
     /**
     * should contain a set of EthereumAccounts
+    * @param {EccKeyPair} master_keypair; 
     */
+    this.master_keypair = master_keypair; 
   }
+
+  static random() {
+    return new EthWallet(secp256k1(true)); 
+  }
+
 }

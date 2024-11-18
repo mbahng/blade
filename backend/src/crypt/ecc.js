@@ -54,6 +54,9 @@ export function inverse(a, p) {
 export class EccCurve {
   constructor(p, a, b, n) {
     /**
+    * even though generator point G is considered part of this standard, it 
+    * shouldn't be an attribute since we have every EccPoint point to one 
+    * curve. Look at secp256k1 implementation for refresher. 
     * @constructs 
     * @param {Hex} p
     * @param {Hex} a
@@ -80,27 +83,35 @@ export class EccPoint {
   constructor(x, y, curve) {
     /**
     * @param {Hex | null} x 
-    * @param {Hex | null} y 
-    * @param {EccCurve} curve
+    * @param {Hex | null} y  
+    * @param {EccCurve} curve - need a pointer to curve parameters for 
+    * operations on points
     */
     this.x = x; // infinity point is null
     this.y = y; // infinity point is null
+    this.curve = curve; 
     if (this.x.toBigInt() < 0n || this.y.toBigInt() < 0n) {
-      throw Error("Coorindates should be positive");
+      throw Error("Coorindates should be positive.");
     }
-    this.curve = curve;
 
     if (!this.isOnCurve()) {
-      throw Error("This is not on curve.");
+      throw Error("The point is not on the curve.");
     }
   }
 
   eq(other) {
-    return (this.x.eq(other.x) && this.y.eq(other.y) && this.curve.eq(other.curve));
+    return (
+      this.x.eq(other.x) && 
+      this.y.eq(other.y) && 
+      this.curve.eq(other.curve)
+    ); 
   }
 
-  // Point operations
   isOnCurve() {
+    /**
+    * @param {EccCurve} curve
+    * @returns {bool}
+    */
     if (this.x == null) return true;
     
     const x = this.x.toBigInt();
@@ -136,10 +147,6 @@ export class EccPoint {
   }
 
   add(other) {
-    if (!this.curve.eq(other.curve)) {
-      throw Error("Two points are not on the same curve.");
-    }
-    
     if (this.eq(other)) {
       return this.double(); 
     }
@@ -224,47 +231,51 @@ export class EccPoint {
 }
 
 export class PublicEccKey {
-  // Non-hardened, perhaps extended key
-  constructor(curve, point, G, chain, path="g") {
+  // Non-hardened extended key
+  constructor(G, point, chain) {
     /**
     * @constructs 
-    * @param {EccCurve} curve 
-    * @param {EccPoint} point
-    * @param {EccPoint} G 
-    * @param {Hex} chain
-    * @param {string} path - path of the key, e.g. g/1/23/456
+    * @param {EccCurve} G       - generator point since not included in curve  
+    * @param {EccPoint} point   - initialized with the ecc point
+    * @param {Hex|null} chain   - chain node, not the blockchain
     */
+    if (G.curve.eq(point.curve)) {
+      this.curve = G.curve; 
+    }
+    else {
+      throw Error("The generator point and public key not on the same curve.")
+    }
+    this.G = G
     this.point = point; 
     this.K = point.toHex(); 
-    this.curve = curve; 
-    this.G = G; 
     this.chain = chain; 
-    this.last_key_index = 0n;
-    this.children = new Map();  
-    this.path = path ; // g for genesis key
     this.txos = [];
   }
 
-  ckd() {
-    // Remove the extension check since we use chain instead
+  ckd(i) {
+    /**
+    * child key derivation function private -> private 
+    * this is implemented since it's possible to derive child keys 
+    * with just public key, but in practice it is called with EccKeyPair
+    * @param {BigInt} i       - must be of size 32 bits
+    * @returns {PublicEccKey} 
+    */
     if (this.chain === null) {
       throw Error("This must be an extended key."); 
     }
-    let child_key_point; 
+    i = Hex.fromBigInt(i); 
     let L; let R; 
-    do {
-      const i = Hex.fromBigInt(this.last_key_index, 32); 
-      const data = this.K.concat(i);
-      const I = hmac_sha512(this.chain, data); 
-      [L, R] = I.split(); 
-      let parsed_L = this.G.mul(L); 
-      child_key_point = parsed_L.add(this.point);
-      this.last_key_index += 1n; 
-    } while (L.toBigInt() >= this.curve.n); 
+    const data = this.K.concat(i);
+    const I = hmac_sha512(this.chain, data); 
+    [L, R] = I.split(); 
+    let parsed_L = this.G.mul(L); 
+    let child_key_point = parsed_L.add(this.point); 
+    if (L.toBigInt() >= this.curve.n) {
+      // failed to create child key, happens with probability < 2^{-127}
+      return false; 
+    }
     
-    const child_path = `${this.path}/${this.last_key_index}`;
-    let cpub_key = new PublicEccKey(this.curve, child_key_point, this.G, R, child_path);
-    this.children.set(child_path, cpub_key);
+    let cpub_key = new PublicEccKey(this.G, child_key_point, R);
     return cpub_key;
   }
 
@@ -275,59 +286,63 @@ export class PublicEccKey {
 
 export class PrivateEccKey {
   // Non-hardened, perhaps extended key
-  constructor(curve, k, K, G, chain, keypair, path="g") {
+  constructor(G, k, chain) {
     /** 
     * @constructs 
-    * @param {EccCurve} curve;
-    * @param {Hex} k;
-    * @param {Hex} K;
-    * @param {EccPoint} G;
-    * @param {Hex} chain;
-    * @param {EccKeyPair} keypair;
-    * @param {string} path;
+    * @param {EccCurve} curve 
+    * @param {Hex} k                - initialized with private key Hex 
+    * @param {Hex} chain            - chain node, not blockchain 
+    * @param {EccKeyPair|null} keypair   - may have pointer to original keypair
     */
-    this.k = k; 
-    this.K = K; 
+    this.curve = G.curve; 
     this.G = G; 
-    this.curve = curve;
+    this.k = k; 
     this.chain = chain; 
-    this.last_key_index = 0n;
-    this.children = new Map(); 
-    this.path = path ; // g for genesis key
-    this.keypair = keypair; 
   }
 
-  ckd() {
+  set_keypair(keypair) {
+    /**
+    * @param {EccKeyPair} keypair 
+    */ 
+    if (this.curve.eq(keypair.public.curve)) {
+      // check that generator point matches with public key 
+      this.keypair = keypair;
+      this.K = keypair.public.K;
+    }
+    else {
+      throw Error("The private generator point and public key not on the same curve.")
+    }
+  }
+
+  ckd(i) {
     /**
     * child key derivation function private -> private 
-    * TODO: Should decide on a standard to make keypair children or 
-    * individual private/public key children
+    * this is implemented since it's possible to derive child keys 
+    * with just private key, but in practice it is called with EccKeyPair
+    * @param {BigInt} i         - must be of size 32 bits
     * @returns {PrivateEccKey} 
     */
     if (this.chain === null) {
       throw Error("This must be an extended key."); 
     }
-    let child_priv_key_val;
+    i = Hex.fromBigInt(i); 
     let L; let R; 
-    do {
-      // should enter while loop with probability < 2^{-127} 
-      const i = Hex.fromBigInt(this.last_key_index, 32);
-      const data = this.K.concat(i); 
-      const I = hmac_sha512(this.chain, data); 
-      [L, R] = I.split(); 
-      child_priv_key_val = (L.toBigInt() + this.k.toBigInt()) % (this.curve.n.toBigInt());
-      this.last_key_index += 1n; 
-    } while (child_priv_key_val === 0n || L.toBigInt() >= this.curve.n); 
+    const data = this.K.concat(i); 
+    const I = hmac_sha512(this.chain, data); 
+    [L, R] = I.split(); 
+    let child_priv_key_val = (L.toBigInt() + this.k.toBigInt()) % (this.curve.n.toBigInt()); 
 
+    if (child_priv_key_val === 0n || L.toBigInt() >= this.curve.n) {
+      // failed to create child key, happens with probability < 2^{-127}
+      return false; 
+    }
     child_priv_key_val = Hex.fromBigInt(child_priv_key_val);
-    let child_pub_key_val = this.G.mul(child_priv_key_val); 
-    const child_path = `${this.path}/${this.last_key_index - 1n}`;
-    let cpriv_key = new PrivateEccKey(this.curve, child_priv_key_val, child_pub_key_val.toHex(), this.G, R, this.keypair, child_path); 
-    this.children.set(child_path, cpriv_key);
+
+    let cpriv_key = new PrivateEccKey(this.G, child_priv_key_val, R, this.keypair); 
     return cpriv_key;  
   }
 
-  create_signature(m) { // m = message
+  create_signature(m) { 
     /**
     * m = message to be encrypted  which can be unlocked and verified by receiver
     * @param {string} m
@@ -349,15 +364,40 @@ export class PrivateEccKey {
 }
 
 export class EccKeyPair {
-  // Constructor should not be called directly, since there are defined 
-  // standards for what p, a, b, G should be
-  constructor(G, extended) {
+  // Recommended to instantiate using helper functions below, 
+  // which ensures that curve construction is consistent. 
+  constructor(pub, priv, path="g") {
+    /**
+    * @construts 
+    * @param {PublicEccKey} pub
+    * @param {PrivateEccKey} priv
+    */
+
+    if (pub.G.eq(priv.G)) {
+      this.curve = priv.curve; 
+    }
+    else {
+      throw Error("Curves of private and public keys are not equal. ");
+    }
+    this.public = pub; 
+    this.private = priv; 
+
+    this.children = new Map(); 
+    this.i  = 0n;               // accumulator index for generating next child
+    this.path = path; 
+  }
+
+  static random(G, extended) {
     /**
     * @constructs 
-    * @param {EccPoint} G 
-    * @param {Boolean} extended 
+    * @param {EccPoint} G         - generator point G defines the curve 
+    * @param {Boolean} extended   - whether this is extended keypair
     */
-    this.curve = G.curve; 
+    
+    // generate new random private key 
+    const private_key = Hex.fromBigInt(randomInt(256));
+
+    // generate chain node if extended key 
     let chain; 
     if (extended) {
       chain = Hex.fromBigInt(randomInt(256)); 
@@ -366,16 +406,44 @@ export class EccKeyPair {
       chain = null; 
     }
 
-    const private_key = Hex.fromBigInt(randomInt(256));
-
-    // compute public key 
+    // compute public key point
     const public_point = G.mul(private_key);
-    this.public = new PublicEccKey(this.curve, public_point, G, chain);
-    this.private = new PrivateEccKey(this.curve, private_key, this.public.K, G, chain, this); 
+
+    // construct both private keys and return their pair
+    const pubkey = new PublicEccKey(G, public_point, chain);
+    const privkey = new PrivateEccKey(G, private_key, chain); 
+
+    const keypair = new EccKeyPair(pubkey, privkey); 
+    privkey.set_keypair(keypair);
+    return keypair; 
   }
   
   txos() {
     return this.public.txos; 
+  }
+
+  ckd() {
+    /**
+    * @returns {EccKeyPair} 
+    */
+    // create child public and private keys and ensure they are successful
+    let cpub_key = this.public.ckd(this.i); 
+    let cpriv_key = this.private.ckd(this.i);  
+    while (cpub_key === false || cpriv_key === false) {
+      this.i++; 
+      cpub_key = this.public.ckd(this.i); 
+      cpriv_key = this.private.ckd(this.i);  
+    }
+
+    // generate new path for child key pair and store it 
+    const cpath = `${this.path}/${this.i}`;
+    const ckey_pair = new EccKeyPair(cpub_key, cpriv_key, cpath);  
+    this.children.set(cpath, cpriv_key);
+
+    // increment index for next call of ckd() 
+    this.i++; 
+
+    return ckey_pair; 
   }
 }
 
@@ -384,16 +452,13 @@ export function secp192k1(extended) {
   let a = new Hex("000000000000000000000000000000000000000000000000");
   let b = new Hex("000000000000000000000000000000000000000000000003");
   let n = new Hex("fffffffffffffffffffffffe26f2fc170f69466a74defd8d");
-
   let curve = new EccCurve(p, a, b, n);
-
   let G = new EccPoint(
     new Hex("db4ff10ec057e9ae26b07d0280b7f4341da5d1b1eae06c7d"),
-    new Hex("9b2f2f6d9c5628a7844163d015be86344082aa88d95e2f9d"),
-    curve 
+    new Hex("9b2f2f6d9c5628a7844163d015be86344082aa88d95e2f9d"), 
+    curve
   );
-
-  return new EccKeyPair(G, extended);
+  return EccKeyPair.random(G, extended);
 }
 
 export function secp256k1(extended) {
@@ -401,16 +466,13 @@ export function secp256k1(extended) {
   let a = new Hex("0000000000000000000000000000000000000000000000000000000000000000");
   let b = new Hex("0000000000000000000000000000000000000000000000000000000000000007");
   let n = new Hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
-
   let curve = new EccCurve(p, a, b, n);
-
   let G = new EccPoint(
     new Hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"),
-    new Hex("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"),
-    curve 
+    new Hex("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"), 
+    curve
   );
-
-  return new EccKeyPair(G, extended);
+  return EccKeyPair.random(G, extended);
 }
 
 export function secp256r1(extended) {
@@ -418,16 +480,13 @@ export function secp256r1(extended) {
   let a = new Hex("ffffffff00000001000000000000000000000000fffffffffffffffffffffffc");
   let b = new Hex("5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b");
   let n = new Hex("ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551");
-
   let curve = new EccCurve(p, a, b, n);
-
   let G = new EccPoint(
     new Hex("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"),
-    new Hex("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"),
-    curve 
+    new Hex("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"), 
+    curve
   );
-
-  return new EccKeyPair(G, extended);
+  return EccKeyPair.random(G, extended);
 }
 
 export class EcdsaSignature {
