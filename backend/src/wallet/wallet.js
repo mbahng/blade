@@ -19,8 +19,8 @@ export class BtcWallet {
     let res = []; 
     function recursive_txos(keypair) {
       res.push(...(keypair.txos())); 
-      if (keypair.public.children.size !== 0) {
-        for (child_kp of keypair.public.children) {
+      if (keypair.children.size !== 0) {
+        for (child_kp of keypair.children) {
           recursive_txos(child_kp);
         }
       }
